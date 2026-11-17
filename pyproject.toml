@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sable"
+version = "0.1.0"
+description = "Read-only Linux security assessment and evidence-based reporting"
+requires-python = ">=3.10"
+dependencies = ["jsonschema>=4.18,<5", "rfc3339-validator>=0.1,<1", "Jinja2>=3.1,<4", "PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+app = ["paramiko>=3,<5", "networkx>=3,<4", "PyYAML>=6,<7", "Jinja2>=3.1,<4"]
+
+[project.scripts]
+sable = "sable.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["sable*", "schemas"]
+
+[tool.setuptools.package-data]
+"schemas" = ["*.json"]
+"sable.report" = ["templates/*.html", "templates/*.js", "vendor/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+

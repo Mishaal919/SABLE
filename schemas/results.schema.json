@@ -1,0 +1,1564 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "stage": {
+      "enum": [
+        "analysis",
+        "complete"
+      ]
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "distro": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kernel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user": {
+          "type": "string",
+          "minLength": 1
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "mode": {
+          "enum": [
+            "unprivileged",
+            "elevated"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sable_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uptime_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "kb_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kb_date": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "host",
+        "distro",
+        "kernel",
+        "user",
+        "groups",
+        "mode",
+        "timestamp",
+        "sable_version",
+        "kb_version"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "suid_binary"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "group": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "type": "string",
+                    "pattern": "^[0-7]{3,4}$"
+                  },
+                  "suid": {
+                    "type": "boolean"
+                  },
+                  "sgid": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "path",
+                  "owner",
+                  "group",
+                  "mode",
+                  "suid",
+                  "sgid"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "file_permission"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "group": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "type": "string",
+                    "pattern": "^[0-7]{3,4}$"
+                  },
+                  "writable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  },
+                  "readable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "path",
+                  "owner",
+                  "group",
+                  "mode",
+                  "writable_by",
+                  "readable_by"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "sudo_rule"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "runas": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nopasswd": {
+                    "type": "boolean"
+                  },
+                  "commands": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "user",
+                  "runas",
+                  "nopasswd",
+                  "commands"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "scheduled_job"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "scheduler": {
+                    "enum": [
+                      "cron",
+                      "timer"
+                    ]
+                  },
+                  "run_as": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_group": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_mode": {
+                    "type": "string",
+                    "pattern": "^[0-7]{3,4}$"
+                  },
+                  "writable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "scheduler",
+                  "run_as",
+                  "script_path",
+                  "script_owner",
+                  "script_group",
+                  "script_mode",
+                  "writable_by"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "service"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "package": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "running": {
+                    "type": "boolean"
+                  },
+                  "listeners": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "port": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 65535
+                        },
+                        "protocol": {
+                          "enum": [
+                            "tcp",
+                            "udp"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "port",
+                        "protocol"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "package",
+                  "version",
+                  "running",
+                  "listeners"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "capability"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "capabilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "path",
+                  "capabilities"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "credential_location"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "line": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pattern_type": {
+                    "enum": [
+                      "password",
+                      "token",
+                      "private_key",
+                      "connection_string"
+                    ]
+                  },
+                  "readable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "path",
+                  "line",
+                  "pattern_type",
+                  "readable_by"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "user_account"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "gid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "groups": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  },
+                  "home": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "shell": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name",
+                  "uid",
+                  "gid",
+                  "groups",
+                  "home",
+                  "shell"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "ssh_setting"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "PermitRootLogin",
+                      "PasswordAuthentication",
+                      "PubkeyAuthentication",
+                      "PermitEmptyPasswords",
+                      "Protocol"
+                    ]
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "effective": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "value",
+                  "effective"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "package"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "architecture": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name",
+                  "version",
+                  "architecture"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          }
+        ]
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "enum": [
+              "permission_denied",
+              "timeout",
+              "command_failed",
+              "unsupported",
+              "not_available"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "check",
+          "reason"
+        ]
+      }
+    },
+    "no_writes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "not_run",
+            "passed",
+            "failed"
+          ]
+        },
+        "method": {
+          "enum": [
+            "none",
+            "docker_diff",
+            "filesystem_hash"
+          ]
+        },
+        "expected_changes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "unexpected_changes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "status",
+        "method",
+        "expected_changes",
+        "unexpected_changes"
+      ]
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "enum": [
+                  "privilege",
+                  "asset",
+                  "credential"
+                ]
+              },
+              "possible_entry": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ]
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "src": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dst": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true,
+                "minItems": 1
+              },
+              "attack": {
+                "type": "string",
+                "minLength": 1
+              },
+              "likelihood": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "breakdown": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "base": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "strength": {
+                    "enum": [
+                      "observed",
+                      "inferred",
+                      "unknown"
+                    ]
+                  },
+                  "factor": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "base",
+                  "strength",
+                  "factor"
+                ]
+              },
+              "unknown_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cis": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "src",
+              "dst",
+              "rule",
+              "evidence_ids",
+              "likelihood",
+              "breakdown"
+            ]
+          }
+        }
+      },
+      "required": [
+        "nodes",
+        "edges"
+      ]
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "entry": {
+            "type": "string",
+            "minLength": 1
+          },
+          "goal": {
+            "type": "string",
+            "minLength": 1
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "band": {
+            "enum": [
+              "High",
+              "Medium",
+              "Low"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "entry",
+          "goal",
+          "edges",
+          "confidence",
+          "band"
+        ]
+      }
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "goal",
+          "confidence"
+        ]
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prior": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "resolving_check": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "prior",
+          "resolving_check"
+        ]
+      }
+    },
+    "voi": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "unknown": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0
+          },
+          "changes_top_fix": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unknown",
+          "value",
+          "changes_top_fix"
+        ]
+      }
+    },
+    "fix_candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "fixes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "breaks_edges": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          },
+          "type": {
+            "enum": [
+              "chmod",
+              "chown",
+              "capability",
+              "sudo",
+              "service",
+              "manual"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rollback": {
+            "type": "string",
+            "minLength": 1
+          },
+          "execution": {
+            "enum": [
+              "script_and_apply",
+              "recommend_only"
+            ]
+          },
+          "risk_removed": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "breaks_edges",
+          "type",
+          "description",
+          "command",
+          "rollback",
+          "execution",
+          "risk_removed"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "sudo",
+                    "service",
+                    "capability",
+                    "manual"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "execution": {
+                  "const": "recommend_only"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "fix_sets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "greedy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "exact": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "robust": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "greedy",
+        "exact",
+        "robust"
+      ]
+    },
+    "residual": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "entry": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "goal": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "edges": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true,
+                    "minItems": 1
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "band": {
+                    "enum": [
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "entry",
+                  "goal",
+                  "edges",
+                  "confidence",
+                  "band"
+                ]
+              }
+            },
+            "goals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "goal": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "goal",
+                  "confidence"
+                ]
+              }
+            }
+          },
+          "required": [
+            "paths",
+            "goals"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "planning": {
+      "type": "object",
+      "properties": {
+        "exact_status": {
+          "enum": [
+            "optimal",
+            "skipped_limit",
+            "uncoverable"
+          ]
+        },
+        "high_only_greedy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "breakable_risk": {
+          "type": "number",
+          "minimum": 0
+        },
+        "risk_curve": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fix_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "risk_removed": {
+                "type": "number",
+                "minimum": 0
+              },
+              "percent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "fix_count",
+              "risk_removed",
+              "percent"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bands": {
+          "type": "object",
+          "properties": {
+            "high_min": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "medium_min": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "high_min",
+            "medium_min"
+          ],
+          "additionalProperties": false
+        },
+        "path_cutoff": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "exact_status",
+        "high_only_greedy",
+        "breakable_risk",
+        "risk_curve",
+        "bands",
+        "path_cutoff"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "stage",
+    "meta",
+    "evidence",
+    "missing",
+    "no_writes",
+    "graph",
+    "paths",
+    "goals",
+    "unknowns",
+    "voi",
+    "fix_candidates",
+    "fixes",
+    "fix_sets",
+    "residual"
+  ],
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "breaks_edges": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "type": {
+          "enum": [
+            "chmod",
+            "chown",
+            "capability",
+            "sudo",
+            "service",
+            "manual"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollback": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution": {
+          "enum": [
+            "script_and_apply",
+            "recommend_only"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "breaks_edges",
+        "type",
+        "description",
+        "command",
+        "rollback",
+        "execution"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "sudo",
+                  "service",
+                  "capability",
+                  "manual"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "execution": {
+                "const": "recommend_only"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "stage": {
+            "const": "analysis"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fixes": {
+            "maxItems": 0
+          },
+          "voi": {
+            "maxItems": 0
+          },
+          "residual": {
+            "type": "null"
+          },
+          "fix_sets": {
+            "properties": {
+              "greedy": {
+                "maxItems": 0
+              },
+              "exact": {
+                "type": "null"
+              },
+              "robust": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "stage": {
+            "const": "complete"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "residual": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SABLE results v1.0"
+}

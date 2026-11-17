@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "host": "weak1.example.test",
+    "distro": "ubuntu 22.04",
+    "kernel": "5.15.0-fixture",
+    "user": "auditor",
+    "groups": [
+      "auditor"
+    ],
+    "mode": "unprivileged",
+    "timestamp": "2026-11-14T00:00:00Z",
+    "sable_version": "0.1.0"
+  },
+  "evidence": [
+    {
+      "id": "ev-01",
+      "type": "credential_location",
+      "data": {
+        "path": "/var/www/config.php",
+        "line": 4,
+        "pattern_type": "password",
+        "readable_by": [
+          "auditor"
+        ]
+      },
+      "source_cmd": "credential_scan",
+      "strength": "observed"
+    }
+  ],
+  "missing": [
+    {
+      "check": "sudoers_full",
+      "reason": "permission_denied"
+    }
+  ],
+  "no_writes": {
+    "status": "not_run",
+    "method": "none",
+    "expected_changes": [],
+    "unexpected_changes": []
+  }
+}

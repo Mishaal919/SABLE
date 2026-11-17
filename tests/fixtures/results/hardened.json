@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "host": "hardened.example.test",
+    "distro": "ubuntu 22.04",
+    "kernel": "5.15.0-fixture",
+    "user": "auditor",
+    "groups": [
+      "auditor"
+    ],
+    "mode": "unprivileged",
+    "timestamp": "2026-11-14T00:00:00Z",
+    "sable_version": "0.1.0",
+    "kb_version": "fixture-1.0"
+  },
+  "evidence": [],
+  "missing": [],
+  "no_writes": {
+    "status": "not_run",
+    "method": "none",
+    "expected_changes": [],
+    "unexpected_changes": []
+  },
+  "stage": "complete",
+  "graph": {
+    "nodes": [
+      {
+        "id": "user:auditor",
+        "kind": "privilege"
+      },
+      {
+        "id": "root",
+        "kind": "privilege"
+      }
+    ],
+    "edges": []
+  },
+  "paths": [],
+  "goals": [],
+  "unknowns": [],
+  "voi": [],
+  "fix_candidates": [],
+  "fixes": [],
+  "fix_sets": {
+    "greedy": [],
+    "exact": null,
+    "robust": null
+  },
+  "residual": {
+    "paths": [],
+    "goals": []
+  }
+}

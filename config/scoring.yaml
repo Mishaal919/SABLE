@@ -1,0 +1,12 @@
+# Initial shared defaults; changing these must be reflected in report limitations.
+strength_factors:
+  observed: 1.0
+  inferred: 0.6
+  unknown: 0.3
+bands:
+  high_min: 0.6
+  medium_min: 0.3
+path_cutoff: 6
+unknown_prior: 0.5
+random_seed: 0
+exact_fix_limit: 15

@@ -1,0 +1,12 @@
+SABLE | weak3.example.test | mode: unprivileged
+Top paths
+Path                 Confidence   Band     Goal
+p-01                 0.900        High     root
+p-02                 0.800        High     asset:/etc/shadow
+Top three fixes
+Fix                  Risk removed   Recommendation
+f-01                 0.900          Remove cap_setuid from /opt/python after review
+f-02                 0.800          chmod 640 /etc/shadow
+Residual paths: 0; missing checks: 0
+No-writes certificate: not_run
+Predictions only; fixes have not been applied.

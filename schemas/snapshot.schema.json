@@ -1,0 +1,842 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "distro": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kernel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user": {
+          "type": "string",
+          "minLength": 1
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "mode": {
+          "enum": [
+            "unprivileged",
+            "elevated"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sable_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uptime_seconds": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "host",
+        "distro",
+        "kernel",
+        "user",
+        "groups",
+        "mode",
+        "timestamp",
+        "sable_version"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "suid_binary"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "group": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "type": "string",
+                    "pattern": "^[0-7]{3,4}$"
+                  },
+                  "suid": {
+                    "type": "boolean"
+                  },
+                  "sgid": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "path",
+                  "owner",
+                  "group",
+                  "mode",
+                  "suid",
+                  "sgid"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "file_permission"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "group": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mode": {
+                    "type": "string",
+                    "pattern": "^[0-7]{3,4}$"
+                  },
+                  "writable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  },
+                  "readable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "path",
+                  "owner",
+                  "group",
+                  "mode",
+                  "writable_by",
+                  "readable_by"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "sudo_rule"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "user": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "runas": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nopasswd": {
+                    "type": "boolean"
+                  },
+                  "commands": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "user",
+                  "runas",
+                  "nopasswd",
+                  "commands"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "scheduled_job"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "scheduler": {
+                    "enum": [
+                      "cron",
+                      "timer"
+                    ]
+                  },
+                  "run_as": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_group": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "script_mode": {
+                    "type": "string",
+                    "pattern": "^[0-7]{3,4}$"
+                  },
+                  "writable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "scheduler",
+                  "run_as",
+                  "script_path",
+                  "script_owner",
+                  "script_group",
+                  "script_mode",
+                  "writable_by"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "service"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "package": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "running": {
+                    "type": "boolean"
+                  },
+                  "listeners": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "port": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 65535
+                        },
+                        "protocol": {
+                          "enum": [
+                            "tcp",
+                            "udp"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "port",
+                        "protocol"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "package",
+                  "version",
+                  "running",
+                  "listeners"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "capability"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "capabilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "path",
+                  "capabilities"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "credential_location"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "line": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pattern_type": {
+                    "enum": [
+                      "password",
+                      "token",
+                      "private_key",
+                      "connection_string"
+                    ]
+                  },
+                  "readable_by": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "path",
+                  "line",
+                  "pattern_type",
+                  "readable_by"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "user_account"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "gid": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "groups": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  },
+                  "home": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "shell": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name",
+                  "uid",
+                  "gid",
+                  "groups",
+                  "home",
+                  "shell"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "ssh_setting"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "PermitRootLogin",
+                      "PasswordAuthentication",
+                      "PubkeyAuthentication",
+                      "PermitEmptyPasswords",
+                      "Protocol"
+                    ]
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "effective": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "value",
+                  "effective"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "package"
+              },
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "architecture": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name",
+                  "version",
+                  "architecture"
+                ]
+              },
+              "source_cmd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strength": {
+                "enum": [
+                  "observed",
+                  "inferred",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "data",
+              "source_cmd",
+              "strength"
+            ]
+          }
+        ]
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "enum": [
+              "permission_denied",
+              "timeout",
+              "command_failed",
+              "unsupported",
+              "not_available"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "check",
+          "reason"
+        ]
+      }
+    },
+    "no_writes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "not_run",
+            "passed",
+            "failed"
+          ]
+        },
+        "method": {
+          "enum": [
+            "none",
+            "docker_diff",
+            "filesystem_hash"
+          ]
+        },
+        "expected_changes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "unexpected_changes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "status",
+        "method",
+        "expected_changes",
+        "unexpected_changes"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "meta",
+    "evidence",
+    "missing",
+    "no_writes"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SABLE snapshot v1.0"
+}

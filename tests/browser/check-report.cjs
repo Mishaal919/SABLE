@@ -1,0 +1,26 @@
+const { chromium } = require('playwright');
+const { pathToFileURL } = require('url');
+const path = require('path');
+(async () => {
+ const reportDir = process.argv[2] || 'output/demo';
+ const browser = await chromium.launch({...(process.env.BROWSER_EXECUTABLE ? {executablePath:process.env.BROWSER_EXECUTABLE} : {}), headless:true});
+ const context = await browser.newContext({viewport:{width:1440,height:1000}, offline:true});
+ const page = await context.newPage();
+ const errors=[], network=[];
+ page.on('pageerror', e => errors.push(e.message));
+ page.on('request', request => {if (/^https?:/.test(request.url())) network.push(request.url());});
+ await page.goto(pathToFileURL(path.resolve(reportDir, 'report.html')).href);
+ const report = await page.locator('#report-data').textContent().then(JSON.parse);
+ await page.waitForFunction(count => document.querySelector('#what-if-summary').textContent.includes(`${count} of ${count}`), report.paths.length);
+ await page.locator('#select-recommended').click();
+ if (!(await page.locator('#what-if-summary').textContent()).includes(`${report.residual.paths.length} of ${report.paths.length}`)) throw Error('Recommended fix residual mismatch');
+ await page.locator('#clear-fixes').click();
+ if (!(await page.locator('#what-if-summary').textContent()).includes(`${report.paths.length} of ${report.paths.length}`)) throw Error('Clear mismatch');
+ await page.screenshot({path:path.join(reportDir, 'report-desktop.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ await page.waitForFunction(() => document.documentElement.scrollWidth <= 390);
+ await page.screenshot({path:path.join(reportDir, 'report-mobile.png'),fullPage:true});
+ if (errors.length || network.length) throw Error(JSON.stringify({errors,network}));
+ console.log('Offline browser: 0 errors, 0 network requests, what-if select/clear passed.');
+ await browser.close();
+})().catch(e => {console.error(e);process.exit(1);});
