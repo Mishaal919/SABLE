@@ -1,5 +1,8 @@
 .venv/
+.venv*/
 output/
+state.json
+audit.log
 __pycache__/
 *.py[cod]
 *.egg-info/

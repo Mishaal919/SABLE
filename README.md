@@ -47,6 +47,8 @@ or one contributor's work is complete.
 | Optional reporting | CIS tags and KB date where supplied; structural scan comparison showing added/removed paths and confidence changes |
 | Output protection | Shared redaction helper, HTML escaping, safe embedded JSON and a report policy blocking external network access |
 | Collection (Mishaal) | Read-only SSH collector: frozen command allow-list and single `exec_command` gateway, audit log, authorisation prompt, host-key-verified paramiko connection, EC-03..EC-12 evidence parsers, source-side credential redaction, deterministic schema-valid snapshots, unprivileged/elevated modes, timeouts and a `python -m sable.collect` runner |
+| Remediation (Thomas) | Fix/rollback script generation (chmod/chown only; sudo/service/capability/manual kept recommend-only), original-state recording to `state.json`, gated apply mode with per-change confirmation, rollback restoration and rescan-vs-prediction compare; operations are parsed and validated, never executed as raw command strings |
+| End-to-end CLI (Thomas) | `validate / analyze / scan / plan / report / remediate / rollback / compare`; `analyze` and `scan` run the full pipeline (collect →) analyze → finalize → VOI → report, with VOI now wired into the CLI |
 | No-writes certificate | NV-02 fingerprint/certificate logic: docker-diff and hash comparison, allow-listed expected changes, unexpected-write flagging (live diff pending Docker) |
 | Lab targets (Mishaal) | weak1/weak2/weak3/hardened with Dockerfile, authored snapshot and expected.yaml; docker-compose (ports 2221-2224) and `make targets-up/reset`; offline integration harness with a break-a-rule meta-check |
 | Development setup | Installable Python package, CLI, configuration defaults, four synthetic target datasets, tests, CI configuration and interface documentation |
@@ -66,9 +68,9 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 | Targets — Mishaal, shared tests | Target definitions, expected findings and the offline harness are implemented; remaining: build/run the Docker lab (`make targets-up`) and the live integration run |
 | Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
-| Remediation — Thomas | Fix/rollback script generation, original-state recording, gated apply mode, rollback and post-change verification |
-| Orchestration — Thomas, shared integration | `sable analyze --snapshot` and `scan` commands calling `analyze`, `finalize_results`, `compute_voi` and the reporter |
-| Final evaluation | Detection accuracy, complete target acceptance checks, real rollback checks, supported-platform testing, peer review and demo rehearsal |
+| Remediation — Thomas | ~~Fix/rollback script generation, original-state recording, gated apply, rollback~~ implemented (`sable/remediate/`, `remediate`/`rollback` commands); remaining: real apply/rollback execution check on a throwaway target (Docker) |
+| Orchestration — Thomas | ~~`sable analyze` and `scan` calling analyze, finalize_results, compute_voi and the reporter~~ implemented; VOI now wired into the CLI |
+| Final evaluation | Live detection accuracy, target acceptance, real rollback checks, scan one target of each base image, peer review and demo rehearsal (Docker lab) |
 
 A rollback description is required today, but rollback execution is not implemented.
 The report displays supplied certificate/VOI data; it does not perform a filesystem
@@ -141,15 +143,34 @@ SABLE_PW=auditorpass python -m sable.collect auditor@localhost --port 2221 \
 sable validate snapshot output/weak1.snapshot.json
 ```
 
+Analyse a snapshot straight to a report, or run a full SSH scan, with the CLI:
+
+```sh
+# Snapshot -> analyze -> finalize -> VOI -> report, no SSH:
+sable analyze tests/fixtures/snapshots/weak3.json --output output/weak3
+
+# Full scan over SSH (collect -> analyze -> report) in one command:
+SABLE_PW=auditorpass sable scan auditor@localhost --port 2221 \
+  --password-env SABLE_PW --yes --output output/weak1
+```
+
+Generate remediation scripts, or apply chmod/chown fixes on a host you control:
+
+```sh
+sable remediate output/weak3/results.json --output output/weak3   # writes fix.sh + rollback.sh
+sable remediate output/weak3/results.json --apply --state state.json   # gated apply (chmod/chown only)
+sable rollback state.json                                          # restore recorded owner/mode
+```
+
 Offline target acceptance runs without Docker:
 
 ```sh
 make integration   # analyses each target's authored snapshot vs expected.yaml
 ```
 
-The `scan`, `analyze`, `remediate` and `rollback` CLI subcommands are future work
-(the collector is usable now via `python -m sable.collect`). Current commands
-return exit code 0 on success and 2 for handled input/configuration/I/O errors.
+All commands return exit code 0 on success and 2 for handled input/configuration/I/O
+errors. `remediate --apply` and `rollback` change files and run `chmod`/`chown`
+locally; use them only on a host you are authorised to change.
 
 Install `.[dev,app]` when implementing Paramiko SSH collection and NetworkX analysis.
 Jinja2, PyYAML, jsonschema and timestamp validation are already core dependencies.
@@ -178,11 +199,15 @@ Previously verified on **14 November 2026** (macOS, Python 3.14), before the ana
 These are local results, not a claim that GitHub CI or live target tests have run.
 CI is configured for Python 3.10 and 3.12; the latest local environment used Python 3.14.
 
-The collection modules, lab targets and integration harness added in Mishaal's push
-were verified with `python -m pytest -q` on CPython 3.12.16: **252 passed, 6 skipped**
-(the skips are per-target conditional integration checks). This includes
-`tests/test_collect_*.py` and the offline target acceptance in `tests/integration/`.
-The Docker lab (`make targets-up`) and the live SSH scan remain the follow-up.
+The collection, remediation and end-to-end CLI work was verified with
+`python -m pytest -q` on **both CPython 3.10.22 and 3.12.16: 269 passed, 6 skipped**
+(the skips are per-target conditional integration checks), satisfying NF-03's
+two-version requirement. This covers `tests/test_collect_*.py`, `tests/test_remediate.py`,
+`tests/test_cli_commands.py` and the offline target acceptance in `tests/integration/`.
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the same on 3.10 and 3.12.
+Remediation apply/rollback are unit-tested with a fake runner; the live Docker lab
+(`make targets-up`) — real SSH scan, NV-02 `docker diff`, and real apply/rollback on a
+throwaway target — remains the follow-up.
 
 ```sh
 python -m pytest -q
@@ -239,6 +264,8 @@ scope change.
 - [Data contracts](docs/CONTRACTS.md): shared formats and handoff rules.
 - [Analysis](docs/ANALYSIS.md): KB, attack graph, scoring and VOI APIs and acceptance status.
 - [Planning and reporting](docs/PLANNING_AND_REPORTING.md): APIs, configuration and acceptance status.
+- [Collection](docs/COLLECTION.md): collector architecture, evidence contract and EC/CL/TE/NV-02 acceptance.
+- [Remediation](docs/REMEDIATION.md): fix scripts, gated apply/rollback and the end-to-end CLI.
 - [Decisions](docs/DECISIONS.md): scope and unresolved integration questions.
 
 Never commit SSH passwords, private keys, API tokens, real sensitive snapshots or

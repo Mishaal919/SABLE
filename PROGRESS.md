@@ -1,6 +1,6 @@
 # SABLE development handoff for AI contributors
 
-Last updated: **17 November 2026** (Asia/Karachi), after Mishaal's collection push.
+Last updated: **18 November 2026** (Asia/Karachi), after remediation + end-to-end CLI.
 
 Read this entire file before planning changes. Then follow the reading order below
 and inspect the actual code you will change. This is a maintained handoff, not proof
@@ -8,7 +8,38 @@ that the repository cannot have changed since the last update. Reconcile discrep
 with current code and the user's instructions; do not silently discard their decisions.
 Update this file and README.md after material implementation or status changes.
 
-## 0. Latest change: Mishaal's collection push (17 November 2026)
+## 0. Latest change: remediation + end-to-end CLI (18 November 2026)
+
+Read this first if you last worked on the repository before this push.
+
+**New (completes Thomas's RM-* and CL-01, and shared CI/compat):**
+- `sable/remediate/`: `operations.py` (parse a fix command into validated chmod/chown
+  operations — never executes a raw string), `scripts.py` (RM-01/RM-04 fix.sh +
+  rollback.sh; chmod/chown only, sudo/service/capability/manual are commented
+  recommendations), `apply.py` (RM-02 gated apply, records state.json first;
+  RM-05 `residual_matches`), `rollback.py` (RM-03), `runner.py` (`LocalRunner`;
+  stat/chmod/chown via argument lists, no shell), `errors.py`.
+- `sable/cli.py`: now dispatches `validate | analyze | scan | plan | report |
+  remediate | rollback | compare` (CL-01). `analyze <snapshot>` and
+  `scan user@host` run the full pipeline: analyze -> finalize_results ->
+  compute_voi -> write_report (VOI is now wired into the CLI). `scan` calls
+  `collect_snapshot`. Existing commands are unchanged (same handlers, exit codes).
+- `tests/test_remediate.py`, `tests/test_cli_commands.py` (new; apply/rollback use a
+  fake runner, so no real chmod runs in CI — real execution is covered by the Docker
+  lab). `.github/workflows/ci.yml` runs the suite on Python 3.10 and 3.12.
+- `.gitignore` adds `.venv*/`, `state.json`, `audit.log`.
+
+**Verified:** `python -m pytest -q` -> **269 passed, 6 skipped** on CPython 3.10.22
+**and** 3.12.16 (NF-03 multi-version). The installed-CLI test and offline target
+harness pass. Remediation apply/rollback are unit-tested via a fake runner; real
+chmod/chown execution, live SSH collection, the live NV-02 docker diff and
+"scan one target of each base image" still need the Docker lab up (Docker Desktop was
+not running here).
+
+**Capability policy unchanged:** capability fixes stay recommend-only (not scripted,
+not applied); only chmod/chown are applyable (RM-04). DECISIONS item 5 holds.
+
+## 0a. Earlier change: Mishaal's collection push (17 November 2026)
 
 Read this first if you last worked on the repository before this push.
 
@@ -194,10 +225,12 @@ authored snapshot + expected.yaml + compose) and `tests/integration/test_targets
 stand-ins until the Docker lab is built and a live snapshot replaces each; the new
 tests pass (252 passed, 6 skipped on CPython 3.12.16).
 
-Still scaffolding, not implementations: `sable/remediate/` (Thomas). Its package
-files do not imply that apply/rollback works. Live SSH scanning against running
-containers, the `scan`/`analyze` CLI wiring and the real NV-02 docker-diff run are
-the remaining collection-side follow-ups.
+`sable/remediate/` is now implemented (script generation, gated chmod/chown apply,
+rollback, rescan compare) and the `scan`/`analyze`/`remediate`/`rollback` CLI
+commands are wired. What still needs a live environment, not more code: SSH scanning
+against running containers (live EC-01/EC-13), the real NV-02 docker-diff run, real
+chmod/chown apply + rollback on a throwaway target (RP-05/RM-01..03 execution) and
+"scan one target of each base image" (NF-03). These are gated on `make targets-up`.
 
 Other assets: pyproject.toml, Makefile, public YAML defaults, .gitignore, four
 synthetic snapshots, eight analysis/completed results generated from them by
@@ -549,16 +582,17 @@ no-writes safety, real detection accuracy, rollback correctness or distro suppor
 4. ~~Shared path/goal scoring~~ done: one definition in graph/paths + score/goal.
 5. ~~VOI~~ done as `compute_voi`; Thomas's orchestration must call it after
    `finalize_results` and before rendering.
-6. Thomas: add `sable analyze --snapshot` (analyze -> finalize -> VOI -> report) and
-   later `scan` to connect the entire pipeline. Pass `scan.extra_entry_points` /
-   `asset_goals` from sable.yaml through to `analyze`. The application
-   should eventually accept SSH credentials and produce the report in one run.
-7. Implement genuine no-writes fingerprint/certificate checks, error/missing-data
-   behavior and source-side redaction/audit acceptance tests.
-8. Implement remediation scripts/state/apply/rollback separately, with explicit
-   gating and throwaway-target tests. Complete RP-05's real stat restoration check.
-9. Run all target expectations, supported Python/distro tests, acceptance checks,
-   review, security-analysis documentation and fresh-clone demo rehearsal.
+6. ~~Thomas: `sable analyze` / `scan` connecting the whole pipeline~~ done: the CLI
+   runs analyze -> finalize -> VOI -> report, `scan` calls the collector, and
+   `scan.extra_entry_points`/`asset_goals` flow from sable.yaml through to `analyze`.
+7. Genuine no-writes fingerprint/certificate: certificate logic + tests done
+   (NV-02); the real docker-diff/hash run against a live target remains (Docker).
+8. ~~Remediation scripts/state/apply/rollback with explicit gating and tests~~ done:
+   `sable/remediate/` + `remediate`/`rollback` commands, unit-tested with a fake
+   runner. Remaining: RP-05/RM-01..03 **execution** check on a throwaway target
+   (apply -> rescan -> rollback, stat identical) — needs the Docker lab.
+9. Run all target expectations live, scan one target of each base image (NF-03),
+   acceptance checks, peer review, security-analysis docs and fresh-clone demo.
 
 Follow the guide's Must/Should/Could priorities. Thomas's planner/report features
 include several Should/Could items already; this does not waive missing core Musts
