@@ -13,7 +13,7 @@ class ContractError(ValueError):
 def load_schema(kind):
     if kind not in {'snapshot', 'results'}:
         raise ContractError('Unknown contract kind')
-    return json.loads(files('schemas').joinpath(f'{kind}.schema.json').read_text())
+    return json.loads(files('schemas').joinpath(f'{kind}.schema.json').read_text(encoding='utf-8'))
 
 
 def _index(items, label):

@@ -16,7 +16,7 @@ FIXTURES = Path(__file__).parent / 'fixtures'
 
 
 def result():
-    return finalize_results(json.loads((FIXTURES / 'results/weak3.analysis.json').read_text()))
+    return finalize_results(json.loads((FIXTURES / 'results/weak3.analysis.json').read_text(encoding='utf-8')))
 
 
 class Inspector(HTMLParser):
@@ -35,14 +35,14 @@ class Inspector(HTMLParser):
 
 def test_sections_self_contained_and_json_export(tmp_path):
     paths = write_report(result(), tmp_path)
-    html = paths['report.html'].read_text()
+    html = paths['report.html'].read_text(encoding='utf-8')
     parser = Inspector(); parser.feed(html)
     assert {'Executive summary','Scan details','Ranked paths with breakdowns','Evidence','Fixes','Residual risk','No-writes certificate','Limitations'} <= set(parser.headings)
     assert not parser.external
     assert 'cytoscape' in html and 'step independence' in html
-    data = json.loads(paths['results.json'].read_text())
+    data = json.loads(paths['results.json'].read_text(encoding='utf-8'))
     validate(data, 'results')
-    assert dumps(data) == paths['results.json'].read_text()
+    assert dumps(data) == paths['results.json'].read_text(encoding='utf-8')
 
 
 def test_output_redaction_and_script_injection(tmp_path):
@@ -53,9 +53,9 @@ def test_output_redaction_and_script_injection(tmp_path):
     r['fix_candidates'][0]['description'] = 'password=unlisted-secret'
     r['fixes'][0]['description'] = 'password=unlisted-secret'
     for path in write_report(r, tmp_path, secrets=[secret]).values():
-        text = path.read_text()
+        text = path.read_text(encoding='utf-8')
         assert secret not in text and 'unlisted-secret' not in text
-    html = (tmp_path/'report.html').read_text()
+    html = (tmp_path/'report.html').read_text(encoding='utf-8')
     assert payload not in html
     assert '\\u003c/script\\u003e' in html
     assert 'not_run' in html
@@ -68,7 +68,7 @@ def test_redaction_patterns():
 
 
 def test_terminal_snapshot():
-    expected = (FIXTURES/'terminal_weak3.txt').read_text()
+    expected = (FIXTURES/'terminal_weak3.txt').read_text(encoding='utf-8')
     assert terminal_summary(result()) == expected
 
 
@@ -92,11 +92,11 @@ def test_cli_offline_end_to_end_and_override(tmp_path,capsys):
     config=tmp_path/'config.yaml'; config.write_text('path_cutoff: 1\n')
     path=FIXTURES/'results/weak3.analysis.json'
     assert main(['report',str(path),'--config',str(config),'--path-cutoff','2','--output',str(tmp_path/'report')])==0
-    r=json.loads((tmp_path/'report/results.json').read_text())
+    r=json.loads((tmp_path/'report/results.json').read_text(encoding='utf-8'))
     assert r['planning']['path_cutoff']==2
     assert 'Top three fixes' in capsys.readouterr().out
     assert main(['plan',str(path),'--output',str(tmp_path/'planned.json')])==0
-    validate(json.loads((tmp_path/'planned.json').read_text()),'results')
+    validate(json.loads((tmp_path/'planned.json').read_text(encoding='utf-8')),'results')
 
 
 def test_invalid_input_leaves_no_report(tmp_path):
@@ -107,7 +107,7 @@ def test_invalid_input_leaves_no_report(tmp_path):
 
 def test_exact_gap_is_displayed():
     from test_planning import six_paths
-    r = json.loads((FIXTURES/'results/weak1.analysis.json').read_text())
+    r = json.loads((FIXTURES/'results/weak1.analysis.json').read_text(encoding='utf-8'))
     graph, paths, candidates = six_paths()
     r.update(graph=graph, paths=paths, fix_candidates=candidates,
              goals=[{'goal':p['goal'],'confidence':p['confidence']} for p in paths])
@@ -138,7 +138,7 @@ def test_application_disclaimers_are_only_at_end():
     ('weak3', ['cap_setuid capability on /opt/python', 'reach root privileges', 'read password hashes from /etc/shadow']),
 ])
 def test_path_explanations_use_recorded_evidence(target, phrases):
-    r = finalize_results(json.loads((FIXTURES / f'results/{target}.analysis.json').read_text()))
+    r = finalize_results(json.loads((FIXTURES / f'results/{target}.analysis.json').read_text(encoding='utf-8')))
     html = render_html(r)
     path_section = html.split('<section id="paths">', 1)[1].split('</section>', 1)[0]
     for phrase in phrases:
@@ -148,7 +148,7 @@ def test_path_explanations_use_recorded_evidence(target, phrases):
 
 
 def test_empty_report_does_not_announce_recommended_fixes():
-    r = finalize_results(json.loads((FIXTURES / 'results/hardened.analysis.json').read_text()))
+    r = finalize_results(json.loads((FIXTURES / 'results/hardened.analysis.json').read_text(encoding='utf-8')))
     html = render_html(r)
     assert 'No fixes were selected for this scan.' in html
     assert 'recommended fixes are available' not in html

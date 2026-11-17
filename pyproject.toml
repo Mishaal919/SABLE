@@ -22,6 +22,7 @@ include = ["sable*", "schemas"]
 [tool.setuptools.package-data]
 "schemas" = ["*.json"]
 "sable.report" = ["templates/*.html", "templates/*.js", "vendor/*"]
+"sable.kb" = ["kb.schema.json", "data/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

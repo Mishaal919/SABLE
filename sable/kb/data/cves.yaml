@@ -1,0 +1,169 @@
+# KB-02: offline catalogue of well-known local privilege-escalation CVEs.
+# package  : Debian/Ubuntu binary package name, or "kernel" meaning the package
+#            linux-image-<running kernel release> recorded in the snapshot.
+# affected : per distro release, versions >= introduced (if given) and < fixed are
+#            vulnerable. Releases not listed are never matched.
+# Matches are version-only, so the generated step is always strength "inferred".
+# VERIFY fixed versions against https://ubuntu.com/security/cves and
+# https://security-tracker.debian.org before relying on results (see meta.yaml).
+cves:
+  - id: CVE-2021-4034
+    name: PwnKit (pkexec)
+    package: policykit-1
+    affected:
+      - {distro: ubuntu 18.04, fixed: 0.105-20ubuntu0.18.04.6}
+      - {distro: ubuntu 20.04, fixed: 0.105-26ubuntu1.2}
+      - {distro: debian 10, fixed: 0.105-25+deb10u1}
+      - {distro: debian 11, fixed: 0.105-31+deb11u1}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: pkexec argument handling lets any local user run code as root.
+
+  - id: CVE-2021-3560
+    name: polkit D-Bus authentication bypass
+    package: policykit-1
+    affected:
+      - {distro: ubuntu 20.04, fixed: 0.105-26ubuntu1.1}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Killing a D-Bus request mid-check lets a local user create an admin account.
+
+  - id: CVE-2021-3156
+    name: Baron Samedit (sudo heap overflow)
+    package: sudo
+    affected:
+      - {distro: ubuntu 18.04, fixed: 1.8.21p2-3ubuntu1.4}
+      - {distro: ubuntu 20.04, fixed: 1.8.31-1ubuntu1.2}
+      - {distro: debian 10, fixed: 1.8.27-1+deb10u3}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: sudoedit -s heap overflow; no sudo rule is required.
+
+  - id: CVE-2023-22809
+    name: sudoedit extra-argument file write
+    package: sudo
+    affected:
+      - {distro: ubuntu 20.04, fixed: 1.8.31-1ubuntu1.4}
+      - {distro: ubuntu 22.04, fixed: 1.9.9-1ubuntu2.2}
+      - {distro: debian 11, fixed: 1.9.5p2-3+deb11u1}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Requires a sudoedit rule; EDITOR injection edits arbitrary files.
+
+  - id: CVE-2019-14287
+    name: sudo runas user ID -1
+    package: sudo
+    affected:
+      - {distro: ubuntu 18.04, fixed: 1.8.21p2-3ubuntu1.1}
+      - {distro: debian 10, fixed: 1.8.27-1+deb10u1}
+    cvss: {score: 8.8, vector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Requires a rule of the form (ALL, !root); sudo -u#-1 then runs as root.
+
+  - id: CVE-2023-4911
+    name: Looney Tunables (glibc ld.so)
+    package: libc6
+    affected:
+      - {distro: ubuntu 22.04, fixed: 2.35-0ubuntu3.4}
+      - {distro: debian 12, fixed: 2.36-9+deb12u3}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: GLIBC_TUNABLES overflow in the dynamic loader of SUID programs.
+
+  - id: CVE-2016-5195
+    name: Dirty COW
+    package: kernel
+    affected:
+      - {distro: ubuntu 14.04, fixed: 3.13.0-100.147}
+      - {distro: ubuntu 16.04, fixed: 4.4.0-45.66}
+      - {distro: debian 8, fixed: 3.16.36-1+deb8u2}
+    cvss: {score: 7.0, vector: "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Copy-on-write race writes to read-only memory mappings.
+
+  - id: CVE-2022-0847
+    name: Dirty Pipe
+    package: kernel
+    affected:
+      - {distro: ubuntu 20.04, introduced: "5.8", fixed: 5.13.0-35.40~20.04.1}
+      - {distro: debian 11, introduced: "5.8", fixed: 5.10.92-2}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Uninitialised pipe buffer flags allow overwriting read-only files.
+
+  - id: CVE-2021-3493
+    name: Ubuntu OverlayFS file capabilities
+    package: kernel
+    affected:
+      - {distro: ubuntu 18.04, fixed: 4.15.0-142.146}
+      - {distro: ubuntu 20.04, fixed: 5.4.0-72.80}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Ubuntu-specific overlayfs patch lets unprivileged namespaces set capabilities.
+
+  - id: CVE-2023-0386
+    name: OverlayFS setuid copy-up
+    package: kernel
+    affected:
+      - {distro: ubuntu 22.04, fixed: 5.15.0-70.77}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Copy-up of a setuid file from a nosuid mount into overlayfs.
+
+  - id: CVE-2021-22555
+    name: Netfilter x_tables heap out-of-bounds write
+    package: kernel
+    affected:
+      - {distro: ubuntu 18.04, fixed: 4.15.0-151.157}
+      - {distro: ubuntu 20.04, fixed: 5.4.0-80.90}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Needs unprivileged user namespaces.
+
+  - id: CVE-2022-2588
+    name: cls_route use-after-free
+    package: kernel
+    affected:
+      - {distro: ubuntu 20.04, fixed: 5.4.0-124.140}
+      - {distro: ubuntu 22.04, fixed: 5.15.0-46.49}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: route4 filter handle reuse; needs unprivileged user namespaces.
+
+  - id: CVE-2022-32250
+    name: nf_tables use-after-free
+    package: kernel
+    affected:
+      - {distro: ubuntu 22.04, fixed: 5.15.0-40.43}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Needs unprivileged user namespaces.
+
+  - id: CVE-2023-32233
+    name: nf_tables anonymous set use-after-free
+    package: kernel
+    affected:
+      - {distro: ubuntu 22.04, fixed: 5.15.0-75.82}
+      - {distro: debian 12, fixed: 6.1.27-1}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Needs unprivileged user namespaces.
+
+  - id: CVE-2024-1086
+    name: nf_tables verdict double free
+    package: kernel
+    affected:
+      - {distro: ubuntu 22.04, fixed: 5.15.0-101.111}
+      - {distro: debian 12, fixed: 6.1.76-1}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Public exploit; needs unprivileged user namespaces.
+
+  - id: CVE-2019-13272
+    name: ptrace PTRACE_TRACEME credential handling
+    package: kernel
+    affected:
+      - {distro: ubuntu 18.04, fixed: 4.15.0-58.64}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Requires a polkit helper reachable from the user session.
+
+  - id: CVE-2020-14386
+    name: AF_PACKET memory corruption
+    package: kernel
+    affected:
+      - {distro: ubuntu 20.04, fixed: 5.4.0-48.52}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Needs CAP_NET_RAW, available inside unprivileged user namespaces.
+
+  - id: CVE-2017-16995
+    name: eBPF verifier sign extension
+    package: kernel
+    affected:
+      - {distro: ubuntu 16.04, fixed: 4.4.0-116.140}
+    cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
+    note: Unprivileged BPF must be enabled.

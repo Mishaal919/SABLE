@@ -11,7 +11,7 @@ FIXTURES = Path(__file__).parent / 'fixtures'
 
 
 def read(relative):
-    return json.loads((FIXTURES / relative).read_text())
+    return json.loads((FIXTURES / relative).read_text(encoding='utf-8'))
 
 
 @pytest.mark.parametrize('kind', ['snapshot', 'results'])
@@ -74,7 +74,7 @@ def test_cli_success(capsys):
 
 def test_cli_error_does_not_echo_payload(tmp_path, capsys):
     path = tmp_path / 'bad.json'
-    path.write_text('{"secret":"never-echo-me"}')
+    path.write_text('{"secret":"never-echo-me"}', encoding='utf-8')
     with pytest.raises(SystemExit) as error:
         main(['validate', 'snapshot', str(path)])
     assert error.value.code == 2

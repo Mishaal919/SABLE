@@ -1,12 +1,63 @@
 # SABLE development handoff for AI contributors
 
-Last updated: **14 November 2026** (Asia/Karachi).
+Last updated: **17 November 2026** (Asia/Karachi), after Hamzah's analysis push.
 
 Read this entire file before planning changes. Then follow the reading order below
 and inspect the actual code you will change. This is a maintained handoff, not proof
 that the repository cannot have changed since the last update. Reconcile discrepancies
 with current code and the user's instructions; do not silently discard their decisions.
 Update this file and README.md after material implementation or status changes.
+
+## 0. Latest change: Hamzah's analysis push (17 November 2026)
+
+Read this first if you last worked on the repository before 17 November.
+
+**New (Hamzah's guide scope, pages 8-10):**
+- `sable/kb/`: `data/meta.yaml`, `binaries.yaml` (42 GTFOBins entries),
+  `cves.yaml` (18 local privilege-escalation CVEs), `rules.yaml` (15 rules with fix
+  and rollback templates, ATT&CK IDs); `kb.schema.json`; `loader.py`
+  (`load_kb`, errors name file and field); `versions.py` (dpkg version comparison).
+- `sable/graph/build.py`: `analyze(snapshot, config)` -> validated `stage: analysis`
+  results; `build_graph`, `GraphBuilder` (refuses edges without evidence).
+- `sable/graph/paths.py` and `sable/score/goal.py`: path enumeration, bands and goal
+  scoring **moved here** from `sable/fix/paths.py` (code unchanged).
+  `sable/fix/paths.py` re-exports them and keeps `residual_risk`, so existing imports work.
+- `sable/score/likelihood.py` (base x strength factor, CVSS base) and
+  `sable/score/voi.py` (`compute_voi`, NV-01).
+- `docs/ANALYSIS.md`: interfaces, rule format, scoring, VOI and the acceptance matrix.
+- Tests: `tests/test_kb.py`, `tests/test_analysis.py`, `tests/test_voi.py`,
+  `tests/analysis_helpers.py` (110 new tests; 171 in total).
+- `tests/fixtures/regenerate.py` / `make fixtures`; `config/scoring.yaml` gains
+  `goal_exact_edge_limit`, `goal_samples`, `voi_bonus: 0.1`; `pyproject.toml` packages
+  the KB data; a `.gitignore` was added (this handoff previously claimed one existed; it did not).
+
+**Changed in other members' areas, and why:**
+- All `tests/fixtures/results/*.json` and `terminal_weak3.txt` are now **generated
+  by the analyzer** from the unchanged snapshots (decision agreed with Hamzah). They
+  serialize with `dumps()` (sorted keys), so the diff is large. Structure and IDs
+  are kept: same edges/paths/fixes; `kb_version` is now `1.0.0` with `kb_date`;
+  credential node `cred:db` is now `cred:/var/www/config.php`; fix text comes from
+  the KB templates (e.g. weak3's capability fix is `setcap -r /opt/python`). All of
+  Thomas's existing tests pass unchanged against them; none of their expected values
+  were edited. The completed fixtures now also carry VOI (empty where no unknowns).
+- Windows compatibility only, no behaviour change: `read_text()` calls in
+  `sable/cli.py`, `sable/contracts/validation.py`, `sable/report/html.py` and the tests
+  now pass `encoding='utf-8'` (Windows defaulted to cp1252 and failed 11 reporting
+  tests). `tests/test_installation.py` uses the `sable.exe` launcher on Windows.
+
+**Decisions taken (also in DECISIONS.md / CONTRACTS.md):**
+- One confidence definition: analysis, planner, residuals and VOI share
+  `graph/paths.py` + `score/goal.py`. NetworkX is not used; the guide's
+  `all_simple_paths` would merge parallel edges from different rules.
+- Unknowns need real evidence **plus** a missing check: an interactive account
+  (user_account, uid >= 1000, login shell) without recorded sudo rules, when
+  `sudoers_full` is missing, gets an `unknown` edge to root with `unknown_id`.
+- Credential reuse is an `inferred` rule (cred -> interactive account), fired only
+  when user_account evidence exists. weak1's synthetic snapshot has none, so its
+  results still stop at the credential and Thomas's "no dbadmin" test holds.
+- Default goals: root, every reachable asset/credential node, configured asset_goals.
+- `voi_bonus` default 0.1. VOI uses `plan_fixes` (with exact disabled for speed).
+- `sable analyze` and VOI wiring into the CLI are **left to Thomas**.
 
 ## 1. User intent and confirmed scope
 
@@ -38,6 +89,11 @@ the collector or evidence-to-graph generator. Thomas subsequently requested cont
 consolidation of application disclaimers at its end. Those changes are implemented;
 no claim of completing the whole application has been made.
 
+Hamzah (KB, attack graph, scoring, VOI owner) then implemented his developer-guide
+scope on 17 November 2026 (section 0), working on Windows. He asked that commits are
+authored by him only (git user Hamzahrana, no AI co-author lines) and that nothing is
+pushed without his explicit instruction.
+
 ## 2. Read the repository in this order
 
 1. README.md for user-facing functionality and commands; this file for context.
@@ -46,7 +102,8 @@ no claim of completing the whole application has been made.
 3. `docs/CONTRACTS.md` and **both actual JSON Schema files** under `schemas/`.
 4. One complete fixture chain: snapshot, `.analysis.json`, and completed `.json`
    under `tests/fixtures/`; inspect weak3 for two independent goals and weak1 for missing data.
-5. `docs/PLANNING_AND_REPORTING.md`, including its requirement acceptance matrix.
+5. `docs/PLANNING_AND_REPORTING.md` and `docs/ANALYSIS.md`, including their
+   requirement acceptance matrices.
 6. `docs/TEAM_START.md` and `docs/DECISIONS.md` for ownership and open questions.
 7. Relevant Python functions, templates, tests, configuration and packaging metadata.
 
@@ -66,7 +123,13 @@ Working code:
 | `sable/fix/planner.py` | Template mapping, candidate validation, greedy selection, public planning API and full result finalization |
 | `sable/fix/exact.py` | Exhaustive minimum fix count for High paths, bounded at 15 candidates |
 | `sable/fix/robust.py` | Expected-set-preserving worst-case planning for represented unknown edges |
-| `sable/fix/paths.py` | Path enumeration, confidence bands, shared-edge-aware goal scoring and residual recalculation |
+| `sable/fix/paths.py` | Residual recalculation; re-exports the shared path/goal functions below |
+| `sable/kb/` | YAML catalogues (binaries, CVEs, rules, meta), KB schema, loader, dpkg version comparison |
+| `sable/graph/build.py` | Rule engine: snapshot + KB + config -> graph, entries, goals, unknowns, candidates; `analyze()` |
+| `sable/graph/paths.py` | Shared path enumeration over edge IDs, path confidence, bands |
+| `sable/score/likelihood.py` | Step likelihood = base x strength factor, breakdowns, CVSS base |
+| `sable/score/goal.py` | Shared-edge-aware goal confidence |
+| `sable/score/voi.py` | NV-01 value of information using the planner |
 | `sable/redaction.py` | Recursive output sanitization using known secrets and common secret patterns |
 | `sable/report/html.py` | Jinja2 render and HTML/JSON/text output writer |
 | `sable/report/explanations.py` | Evidence-based natural-language explanations for paths, fix impact and goal routes |
@@ -76,20 +139,20 @@ Working code:
 | `sable/report/vendor/` | Cytoscape.js 3.30.4 and MIT license |
 | `schemas/` | Versioned snapshot/results JSON Schemas, installed as package resources |
 
-Scaffolding, not implementations: `sable/collect/`, `sable/kb/`, `sable/graph/`,
-`sable/score/`, `sable/remediate/`. Their package files do not imply that SSH,
-catalogues, attack-graph generation, upstream scoring or apply/rollback works.
+Scaffolding, not implementations: `sable/collect/`, `sable/remediate/`. Their
+package files do not imply that SSH collection or apply/rollback works.
 `targets/` and `tests/integration/` currently contain guidance, not Docker targets
 or a working live integration harness.
 
-Other assets: pyproject.toml, Makefile, public YAML defaults, .gitignore, a Python
-CI workflow, four synthetic snapshots, eight synthetic analysis/completed results,
-a terminal-output fixture, Python tests and a separate browser check.
+Other assets: pyproject.toml, Makefile, public YAML defaults, .gitignore, four
+synthetic snapshots, eight analysis/completed results generated from them by
+`tests/fixtures/regenerate.py`, a terminal-output fixture, Python tests and a
+separate browser check. No `.github/workflows` file is tracked in git, despite the
+earlier note about a CI workflow; add one if CI is wanted.
 
-The path/scoring implementation inside fix/ is intentional: Thomas needed residual
-analysis before Hamzah's implementation. It consumes existing edges; it is not the
-missing evidence-to-graph generator. Reuse it or integrate it with Hamzah's scorer
-through a consistent interface. Do not create conflicting probability definitions.
+Thomas's original path/scoring code was moved, unchanged, into `graph/paths.py`
+and `score/goal.py` and is shared by analysis, planning, residuals and VOI. Do not
+create conflicting probability definitions.
 
 ## 4. Ownership and intended end-to-end flow
 
@@ -110,11 +173,11 @@ SSH credentials (memory only)
   -> results with stage=complete -> report.html + results.json + summary.txt
 ```
 
-Hamzah's NV-01 calls Thomas's pure planner for alternate unknown scenarios. The
-planner must not call VOI: that creates a dependency cycle. The orchestrator will
-populate VOI; `finalize_results` currently preserves any supplied list and does not
-calculate it. A complete planning result can therefore honestly report that no VOI
-ranking was supplied. Optional remediation is a separate explicitly requested action,
+Hamzah's NV-01 (`compute_voi`) calls Thomas's pure planner for alternate unknown
+scenarios. The planner must not call VOI: that creates a dependency cycle. The
+orchestrator populates VOI after `finalize_results` (which preserves any supplied
+list and does not calculate it); the CLI does not do this yet, so reports made via
+the current CLI honestly say no VOI ranking was supplied. Optional remediation is a separate explicitly requested action,
 never an implicit side effect of scan/report.
 
 ## 5. Contract details you must preserve
@@ -182,6 +245,9 @@ require compatibility consideration because old schemas reject unknown propertie
 ## 6. Reuse the current APIs and algorithms
 
 ```python
+from sable.graph.build import analyze          # snapshot -> stage=analysis
+from sable.score.voi import compute_voi        # ranked VOI list
+from sable.kb.loader import load_kb
 from sable.fix.planner import build_candidates, plan_fixes, finalize_results
 from sable.report.html import render_html, write_report
 from sable.report.terminal import terminal_summary
@@ -189,7 +255,9 @@ from sable.contracts.validation import validate, dumps
 from sable.redaction import redact
 
 plan = plan_fixes(graph, paths, {"fix_candidates": candidates})
+analysis_results = analyze(snapshot, settings)
 complete = finalize_results(analysis_results, settings)
+complete["voi"] = compute_voi(complete, settings)
 outputs = write_report(complete, "output/run", secrets=session_secrets)
 ```
 
@@ -219,21 +287,22 @@ Robust planning preserves the expected set, makes represented unknown edges cert
 missing unknown edges. The curve's denominator is breakable High/Medium risk, not
 all possible host risk; zero breakable risk must be shown honestly.
 
-`paths.py` defaults: cutoff 6; High >= 0.6, Medium >= 0.3; goal scoring enumerates
+Shared path/goal defaults (`graph/paths.py`, `score/goal.py`): cutoff 6; High >= 0.6, Medium >= 0.3; goal scoring enumerates
 edge states up to 16 distinct edges and otherwise uses 10,000 samples with seed 0.
 Goal scoring counts shared edges once: the guide's shared-edge example is 0.48,
 not 0.64. Limits are configurable. Preserve stable ordering and local fixed RNGs.
 
 Finalizer entry defaults are supplied path entries plus the scan account; goals
 are supplied goal records plus root when represented. Explicit config entries/goals
-are required for scope not inferable from the supplied paths. For example, enable
-www-data for weak2. This is a boundary to coordinate with the graph producer.
+are required for scope not inferable from the supplied paths. On the analysis side,
+`analyze` takes `extra_entry_points` (e.g. www-data for weak2) and `asset_goals`;
+paths it produces carry those entries forward, so the finalizer picks them up.
 
 `report` plans an analysis input, or replans when nonempty config is supplied.
 Otherwise it renders a completed input as given. `plan` always replans. Config
-strength_factors/unknown_prior are upstream defaults, not instructions for the current
-planner to rebuild edge likelihoods from evidence. Do not assume every YAML key is
-already consumed by every component.
+strength_factors/unknown_prior are consumed by `analyze` (and voi_bonus by
+`compute_voi`); the planner does not rebuild edge likelihoods from them. Do not
+assume every YAML key is consumed by every component.
 
 ## 7. Reports, safety and resource packaging
 
@@ -320,6 +389,16 @@ empty reports and redaction/escaping of text used in explanations.
 
 ## 9. Environment, installation and regression history
 
+**Windows (Hamzah, 17 November 2026):** the checkout is at a Windows path; Python
+3.13 in `.venv` (ignored). `python -m venv .venv`, then
+`.venv\Scripts\python -m pip install -e ".[dev,app]"`. The Python 3.13 venv has no
+setuptools, so install `setuptools>=68` before the `--no-build-isolation` regular
+reinstall below. Always pass `encoding='utf-8'` when reading/writing text files;
+the Windows default (cp1252) broke report tests. git `core.autocrlf=true` stores
+LF in the repository even though files written on Windows use CRLF locally.
+
+The notes below were written on macOS:
+
 The project is located in an iCloud-backed macOS directory with spaces in its path.
 Use proper path quoting, pathlib, subprocess argument lists and package resources.
 Do not hardcode the developer's absolute path in production code or tests.
@@ -350,13 +429,21 @@ changes. No real credentials or target changes were involved in prior verificati
 
 ## 10. Verification history and how to verify future work
 
-Last observed local run: **61 tests passed**, using Python 3.14 on 14 November 2026.
-The workflow is configured for Python 3.10 and 3.12, but no remote CI result is asserted.
+Last observed local run: **171 tests passed**, Python 3.13 on Windows 11, 17 November
+2026, against both an editable and a regular installation (installed-CLI test included).
+A deliberately broken KB rule made 2 tests fail (fixture drift check), confirming
+the tests guard the catalogue. The wheel was checked for the KB YAML/schema files.
+The README analyze example was run and wrote a report. Browser checks were not
+rerun: no HTML/JS changed. Previous run: 61 tests, Python 3.14 on macOS, 14 November.
+No remote CI result is asserted.
 Four synthetic reports passed isolated offline browser checks with zero JavaScript
 errors and zero HTTP(S) requests. Recommended fix selections matched residual counts;
 clear restored original paths. Desktop/mobile screenshots were inspected. The wheel
 was checked for schemas, templates, JavaScript and license resources.
 
+Analysis tests cover every KB/AG/CS/NV-01/NV-05/NF-02/NF-05 acceptance check in
+docs/ANALYSIS.md, including a positive and negative fixture per rule and a check
+that committed analysis fixtures equal fresh analyzer output.
 Tests cover structural/semantic contracts, malformed data, schema timestamps,
 fix-template mapping, missing rollback, unsafe automation types, repeatable ordering,
 exact optimality example, solver limits/uncoverable paths, unknown-edge robust sets,
@@ -385,8 +472,9 @@ what-if counts, checks mobile overflow and saves screenshots. Inspect the images
 passing selectors alone does not prove readable layout. Repeat on relevant empty,
 missing-evidence, residual-risk and unknown-edge cases as appropriate.
 
-All fixtures are synthetic. Committed completed results are hand-authored examples;
-planning tests also compute their own outputs. Browser screenshots/reports live in
+All fixtures are synthetic. Since 17 November the committed analysis/completed results
+are generated from the snapshots (`make fixtures`); rerun it after KB, graph, scoring
+or planner changes and review the diff. Planning tests also compute their own outputs. Browser screenshots/reports live in
 ignored output/ and may not exist on another checkout. Regenerate them rather than
 assuming they are tracked. Passing unit tests does not establish live collection,
 no-writes safety, real detection accuracy, rollback correctness or distro support.
@@ -397,13 +485,15 @@ no-writes safety, real detection accuracy, rollback correctness or distro suppor
    planner/report API while adding real producers; avoid starting a second schema.
 2. Build collector connection/safety foundations and real lab targets. Get one
    authentic redacted snapshot through validation before broadening checks.
-3. Build KB loaders/rules and evidence-to-graph generation. Produce valid analysis
-   results for the existing planner. Match supported Linux/distro versions properly.
-4. Integrate upstream path/goal scoring and config with the existing residual adapter.
-   Preserve numerical behavior and one definition of confidence.
-5. Implement VOI using plan_fixes without recursion. Define the bonus/configuration
-   and fill the completed result before report generation.
-6. Add scan and analyze commands to connect the entire pipeline. The application
+3. ~~KB loaders/rules and evidence-to-graph generation~~ done (17 Nov). Remaining:
+   cross-check `cves.yaml` fixed versions against the Ubuntu/Debian trackers; extend
+   rules when real snapshots show gaps (group-based permissions, SGID, other caps).
+4. ~~Shared path/goal scoring~~ done: one definition in graph/paths + score/goal.
+5. ~~VOI~~ done as `compute_voi`; Thomas's orchestration must call it after
+   `finalize_results` and before rendering.
+6. Thomas: add `sable analyze --snapshot` (analyze -> finalize -> VOI -> report) and
+   later `scan` to connect the entire pipeline. Pass `scan.extra_entry_points` /
+   `asset_goals` from sable.yaml through to `analyze`. The application
    should eventually accept SSH credentials and produce the report in one run.
 7. Implement genuine no-writes fingerprint/certificate checks, error/missing-data
    behavior and source-side redaction/audit acceptance tests.
@@ -418,18 +508,27 @@ elsewhere or authorize dropping them to call the project finished.
 
 ## 12. Open questions and known limits
 
-- **weak1:** a readable password location does not prove reuse by dbadmin. The fixture
-  stops at credential exposure and records unavailable sudoers. Do not fabricate a
-  credential-reuse/root edge. Agree on legitimate evidence or revise the expected chain.
+- **weak1:** a readable password location does not prove reuse by dbadmin. The
+  analyzer models reuse only as an `inferred` step and only with dbadmin's
+  user_account evidence; the current synthetic snapshot has none, so its results stop
+  at the credential. When Mishaal's real weak1 snapshot includes accounts, the
+  report will show a Low cred -> dbadmin -> root path and a sudoers_full unknown;
+  `test_path_explanations_use_recorded_evidence` (asserts no "dbadmin") must then be
+  revisited with the team.
+- **Collector contract (Mishaal):** analysis assumes `readable_by`/`writable_by` list
+  user names (expand groups), kernel package evidence is named
+  `linux-image-<uname -r>`, and an unreadable sudoers is recorded as missing check
+  `sudoers_full`. Confirm these when real snapshots exist.
+- **CVE data:** `cves.yaml` fixed versions were written without network access and
+  must be verified against official trackers before evaluation.
+- **AG-07 graph SVG** (Should) is not implemented; the report's Cytoscape view covers it.
 - **weak2:** www-data must be enabled as an entry for its writable cron-script path.
 - **Remediation boundary:** the guide's exclusive read-only SSH execution rule and
   optional write mode need distinct, explicitly gated runners. Never relax collection.
 - **Capability removal:** currently recommend-only, although weak3 proposes it as a
   fix. Decide policy before generating/applying capability-changing scripts.
-- **Upstream configuration:** VOI bonus and shared scorer integration still need team
-  agreement. The implemented residual scorer has explicit defaults; the separate
-  decisions document predates those defaults in part. Inspect code before assuming
-  an older "proposed" interface is still unimplemented.
+- **Upstream configuration:** settled by Hamzah on 17 November: voi_bonus 0.1 and a
+  single shared scorer. The team may still tune values in scoring.yaml.
 - **Runtime validation:** schemas and current validators do not prove semantic
   completeness, safe execution of a command string, exhaustive redaction, or real
   reversibility. Keep assertions and report wording within verified behavior.

@@ -1,53 +1,81 @@
 {
-  "schema_version": "1.0",
-  "meta": {
-    "host": "hardened.example.test",
-    "distro": "ubuntu 22.04",
-    "kernel": "5.15.0-fixture",
-    "user": "auditor",
-    "groups": [
-      "auditor"
-    ],
-    "mode": "unprivileged",
-    "timestamp": "2026-11-14T00:00:00Z",
-    "sable_version": "0.1.0",
-    "kb_version": "fixture-1.0"
-  },
   "evidence": [],
-  "missing": [],
-  "no_writes": {
-    "status": "not_run",
-    "method": "none",
-    "expected_changes": [],
-    "unexpected_changes": []
+  "fix_candidates": [],
+  "fix_sets": {
+    "exact": [],
+    "greedy": [],
+    "robust": []
   },
-  "stage": "complete",
+  "fixes": [],
+  "goals": [
+    {
+      "confidence": 0.0,
+      "goal": "root"
+    }
+  ],
   "graph": {
+    "edges": [],
     "nodes": [
-      {
-        "id": "user:auditor",
-        "kind": "privilege"
-      },
       {
         "id": "root",
         "kind": "privilege"
+      },
+      {
+        "id": "user:auditor",
+        "kind": "privilege"
       }
+    ]
+  },
+  "meta": {
+    "distro": "ubuntu 22.04",
+    "groups": [
+      "auditor"
     ],
-    "edges": []
+    "host": "hardened.example.test",
+    "kb_date": "2026-11-17",
+    "kb_version": "1.0.0",
+    "kernel": "5.15.0-fixture",
+    "mode": "unprivileged",
+    "sable_version": "0.1.0",
+    "timestamp": "2026-11-14T00:00:00Z",
+    "user": "auditor"
+  },
+  "missing": [],
+  "no_writes": {
+    "expected_changes": [],
+    "method": "none",
+    "status": "not_run",
+    "unexpected_changes": []
   },
   "paths": [],
-  "goals": [],
-  "unknowns": [],
-  "voi": [],
-  "fix_candidates": [],
-  "fixes": [],
-  "fix_sets": {
-    "greedy": [],
-    "exact": null,
-    "robust": null
+  "planning": {
+    "bands": {
+      "high_min": 0.6,
+      "medium_min": 0.3
+    },
+    "breakable_risk": 0,
+    "exact_status": "optimal",
+    "high_only_greedy": [],
+    "path_cutoff": 6,
+    "risk_curve": [
+      {
+        "fix_count": 0,
+        "percent": 0.0,
+        "risk_removed": 0.0
+      }
+    ]
   },
   "residual": {
-    "paths": [],
-    "goals": []
-  }
+    "goals": [
+      {
+        "confidence": 0.0,
+        "goal": "root"
+      }
+    ],
+    "paths": []
+  },
+  "schema_version": "1.0",
+  "stage": "complete",
+  "unknowns": [],
+  "voi": []
 }

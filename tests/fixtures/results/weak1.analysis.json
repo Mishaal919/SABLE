@@ -1,34 +1,97 @@
 {
-  "schema_version": "1.0",
-  "meta": {
-    "host": "weak1.example.test",
-    "distro": "ubuntu 22.04",
-    "kernel": "5.15.0-fixture",
-    "user": "auditor",
-    "groups": [
-      "auditor"
-    ],
-    "mode": "unprivileged",
-    "timestamp": "2026-11-14T00:00:00Z",
-    "sable_version": "0.1.0",
-    "kb_version": "fixture-1.0"
-  },
   "evidence": [
     {
-      "id": "ev-01",
-      "type": "credential_location",
       "data": {
-        "path": "/var/www/config.php",
         "line": 4,
+        "path": "/var/www/config.php",
         "pattern_type": "password",
         "readable_by": [
           "auditor"
         ]
       },
+      "id": "ev-01",
       "source_cmd": "credential_scan",
-      "strength": "observed"
+      "strength": "observed",
+      "type": "credential_location"
     }
   ],
+  "fix_candidates": [
+    {
+      "breaks_edges": [
+        "e-01"
+      ],
+      "command": "chmod 640 /var/www/config.php",
+      "description": "Restrict read access to /var/www/config.php",
+      "execution": "script_and_apply",
+      "id": "f-01",
+      "rollback": "Restore the recorded mode and owner of /var/www/config.php",
+      "type": "chmod"
+    }
+  ],
+  "fix_sets": {
+    "exact": null,
+    "greedy": [],
+    "robust": null
+  },
+  "fixes": [],
+  "goals": [
+    {
+      "confidence": 0.9,
+      "goal": "cred:/var/www/config.php"
+    },
+    {
+      "confidence": 0.0,
+      "goal": "root"
+    }
+  ],
+  "graph": {
+    "edges": [
+      {
+        "attack": "T1552.001",
+        "breakdown": {
+          "base": 0.9,
+          "factor": 1.0,
+          "strength": "observed"
+        },
+        "dst": "cred:/var/www/config.php",
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "id": "e-01",
+        "likelihood": 0.9,
+        "rule": "readable_credential",
+        "src": "user:auditor"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "cred:/var/www/config.php",
+        "kind": "credential"
+      },
+      {
+        "id": "root",
+        "kind": "privilege"
+      },
+      {
+        "id": "user:auditor",
+        "kind": "privilege"
+      }
+    ]
+  },
+  "meta": {
+    "distro": "ubuntu 22.04",
+    "groups": [
+      "auditor"
+    ],
+    "host": "weak1.example.test",
+    "kb_date": "2026-11-17",
+    "kb_version": "1.0.0",
+    "kernel": "5.15.0-fixture",
+    "mode": "unprivileged",
+    "sable_version": "0.1.0",
+    "timestamp": "2026-11-14T00:00:00Z",
+    "user": "auditor"
+  },
   "missing": [
     {
       "check": "sudoers_full",
@@ -36,89 +99,26 @@
     }
   ],
   "no_writes": {
-    "status": "not_run",
-    "method": "none",
     "expected_changes": [],
+    "method": "none",
+    "status": "not_run",
     "unexpected_changes": []
-  },
-  "stage": "analysis",
-  "graph": {
-    "nodes": [
-      {
-        "id": "user:auditor",
-        "kind": "privilege"
-      },
-      {
-        "id": "root",
-        "kind": "privilege"
-      },
-      {
-        "id": "cred:db",
-        "kind": "credential"
-      }
-    ],
-    "edges": [
-      {
-        "id": "e-01",
-        "src": "user:auditor",
-        "dst": "cred:db",
-        "rule": "readable_credential",
-        "evidence_ids": [
-          "ev-01"
-        ],
-        "likelihood": 0.9,
-        "breakdown": {
-          "base": 0.9,
-          "strength": "observed",
-          "factor": 1.0
-        }
-      }
-    ]
   },
   "paths": [
     {
-      "id": "p-01",
-      "entry": "user:auditor",
-      "goal": "cred:db",
+      "band": "High",
+      "confidence": 0.9,
       "edges": [
         "e-01"
       ],
-      "confidence": 0.9,
-      "band": "High"
+      "entry": "user:auditor",
+      "goal": "cred:/var/www/config.php",
+      "id": "p-01"
     }
   ],
-  "goals": [
-    {
-      "goal": "cred:db",
-      "confidence": 0.9
-    }
-  ],
-  "unknowns": [
-    {
-      "id": "u-01",
-      "prior": 0.5,
-      "resolving_check": "sudoers_full"
-    }
-  ],
-  "voi": [],
-  "fix_candidates": [
-    {
-      "id": "f-01",
-      "breaks_edges": [
-        "e-01"
-      ],
-      "type": "chmod",
-      "description": "Synthetic example: readable_credential",
-      "command": "chmod 640 /var/www/config.php",
-      "rollback": "Restore recorded mode and owner",
-      "execution": "script_and_apply"
-    }
-  ],
-  "fixes": [],
-  "fix_sets": {
-    "greedy": [],
-    "exact": null,
-    "robust": null
-  },
-  "residual": null
+  "residual": null,
+  "schema_version": "1.0",
+  "stage": "analysis",
+  "unknowns": [],
+  "voi": []
 }

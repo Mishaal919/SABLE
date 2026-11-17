@@ -1,0 +1,253 @@
+# KB-03: misconfiguration rule catalogue.
+#
+# kind: match (data-driven; new rules need no code change)
+#   evidence_type : snapshot evidence type the rule inspects
+#   when          : all conditions must hold on evidence.data
+#                   ops: eq, ne, in, glob (value: list of globs), not_glob, any_contains
+#   binary        : optional; the basename of data[field] must be in binaries.yaml with
+#                   this context. For list fields any item may match; allow_all lets
+#                   the sudo keyword ALL match.
+#   actors        : "entries" (every configured entry account) or {field: name} where
+#                   data[name] is a user name or list of user names.
+#   target        : node the edge reaches; {field} placeholders read evidence.data.
+#                   user:root is normalised to root.
+# kind: credential_reuse / unknown_sudo / cve are built in sable/graph/build.py and use
+#   only base, attack, cis and fix from this file.
+#
+# base is the default step likelihood before the strength factor (scoring.yaml).
+# fix templates use {field} placeholders from the supporting evidence data plus
+# {src}, {dst} and {rule}; every fix must have a rollback.
+rules:
+  - id: suid_gtfobin
+    kind: match
+    description: Root-owned SUID binary listed in GTFOBins
+    evidence_type: suid_binary
+    when:
+      - {field: suid, op: eq, value: true}
+      - {field: owner, op: eq, value: root}
+    binary: {field: path, context: suid}
+    actors: entries
+    target: "user:{owner}"
+    base: 0.9
+    attack: T1548.001
+    fix:
+      type: chmod
+      description: "Remove the SUID bit from {path}"
+      command: "chmod u-s {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: sudo_nopasswd_gtfobin
+    kind: match
+    description: Passwordless sudo rule allowing a shell-escape binary or ALL
+    evidence_type: sudo_rule
+    when:
+      - {field: nopasswd, op: eq, value: true}
+    binary: {field: commands, context: sudo, allow_all: true}
+    actors: {field: user}
+    target: "user:{runas}"
+    base: 0.95
+    attack: T1548.003
+    fix:
+      type: sudo
+      description: "Restrict the NOPASSWD sudo rule for {user} (runs as {runas})"
+      command: "visudo: remove NOPASSWD and shell-escape commands from the rule for {user}"
+      rollback: "Restore the recorded sudoers entry for {user} with visudo"
+
+  - id: sudo_password_gtfobin
+    kind: match
+    description: Password-protected sudo rule allowing a shell-escape binary or ALL
+    evidence_type: sudo_rule
+    when:
+      - {field: nopasswd, op: eq, value: false}
+    binary: {field: commands, context: sudo, allow_all: true}
+    actors: {field: user}
+    target: "user:{runas}"
+    base: 0.6
+    attack: T1548.003
+    fix:
+      type: sudo
+      description: "Restrict the sudo rule for {user} (runs as {runas})"
+      command: "visudo: remove shell-escape commands from the rule for {user}"
+      rollback: "Restore the recorded sudoers entry for {user} with visudo"
+
+  - id: setuid_capability
+    kind: match
+    description: Interpreter or tool with cap_setuid that can switch to UID 0
+    evidence_type: capability
+    when:
+      - {field: capabilities, op: any_contains, value: cap_setuid}
+    binary: {field: path, context: capability}
+    actors: entries
+    target: root
+    base: 0.9
+    attack: T1548
+    fix:
+      type: capability
+      description: "Remove file capabilities from {path}"
+      command: "setcap -r {path}"
+      rollback: "Restore the recorded capabilities on {path} with setcap"
+
+  - id: writable_root_cron
+    kind: match
+    description: Root scheduled job runs a script writable by another account
+    evidence_type: scheduled_job
+    when:
+      - {field: run_as, op: eq, value: root}
+    actors: {field: writable_by}
+    target: root
+    base: 0.9
+    attack: T1053.003
+    fix:
+      type: chown
+      description: "Make {script_path} owned and writable only by root"
+      command: "chown root:root {script_path} && chmod 755 {script_path}"
+      rollback: "chown {script_owner}:{script_group} {script_path} && chmod {script_mode} {script_path}"
+
+  - id: readable_credential
+    kind: match
+    description: Readable file containing a stored credential
+    evidence_type: credential_location
+    when: []
+    actors: {field: readable_by}
+    target: "cred:{path}"
+    base: 0.9
+    attack: T1552.001
+    fix:
+      type: chmod
+      description: "Restrict read access to {path}"
+      command: "chmod 640 {path}"
+      rollback: "Restore the recorded mode and owner of {path}"
+
+  - id: readable_shadow
+    kind: match
+    description: Password hash file readable by a non-root account
+    evidence_type: file_permission
+    when:
+      - {field: path, op: in, value: [/etc/shadow, /etc/gshadow]}
+    actors: {field: readable_by}
+    target: "asset:{path}"
+    base: 0.8
+    attack: T1003.008
+    fix:
+      type: chmod
+      description: "Restrict read access to {path}"
+      command: "chmod 640 {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: readable_private_key
+    kind: match
+    description: SSH private key readable by another account
+    evidence_type: file_permission
+    when:
+      - {field: path, op: glob, value: ["/root/.ssh/id_*", "/home/*/.ssh/id_*"]}
+      - {field: path, op: not_glob, value: ["*.pub"]}
+    actors: {field: readable_by}
+    target: "cred:{path}"
+    base: 0.9
+    attack: T1552.004
+    fix:
+      type: chmod
+      description: "Make {path} readable only by its owner"
+      command: "chmod 600 {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: writable_account_file
+    kind: match
+    description: Account database writable by a non-root account
+    evidence_type: file_permission
+    when:
+      - {field: path, op: in, value: [/etc/passwd, /etc/shadow, /etc/group]}
+    actors: {field: writable_by}
+    target: root
+    base: 0.95
+    attack: T1098
+    fix:
+      type: chmod
+      description: "Remove group and other write access from {path}"
+      command: "chmod go-w {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: writable_sudoers
+    kind: match
+    description: Sudoers configuration writable by a non-root account
+    evidence_type: file_permission
+    when:
+      - {field: path, op: glob, value: [/etc/sudoers, "/etc/sudoers.d/*"]}
+    actors: {field: writable_by}
+    target: root
+    base: 0.95
+    attack: T1548.003
+    fix:
+      type: chmod
+      description: "Remove group and other write access from {path}"
+      command: "chmod go-w {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: writable_cron_config
+    kind: match
+    description: System crontab writable by a non-root account
+    evidence_type: file_permission
+    when:
+      - {field: path, op: glob, value: [/etc/crontab, "/etc/cron.d/*"]}
+    actors: {field: writable_by}
+    target: root
+    base: 0.9
+    attack: T1053.003
+    fix:
+      type: chmod
+      description: "Remove group and other write access from {path}"
+      command: "chmod go-w {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: writable_service_file
+    kind: match
+    description: systemd unit file writable by a non-root account
+    evidence_type: file_permission
+    when:
+      - {field: path, op: glob, value: ["/etc/systemd/system/*.service", "/lib/systemd/system/*.service", "/usr/lib/systemd/system/*.service"]}
+    actors: {field: writable_by}
+    target: root
+    base: 0.8
+    attack: T1543.002
+    fix:
+      type: chmod
+      description: "Remove group and other write access from {path}"
+      command: "chmod go-w {path}"
+      rollback: "chmod {mode} {path}"
+
+  - id: credential_reuse
+    kind: credential_reuse
+    description: >-
+      A readable stored password may be reused by an interactive local account.
+      Inferred only: credential discovery alone does not prove reuse.
+    base: 0.5
+    attack: T1078.003
+    fix:
+      type: manual
+      description: "Rotate the password exposed via {src} and confirm {dst} does not reuse it"
+      command: "Change the exposed password and set a distinct password for {dst}"
+      rollback: "Restore the previous credentials from the recorded secure store if required"
+
+  - id: unknown_sudo
+    kind: unknown_sudo
+    description: >-
+      Sudoers could not be read, so an interactive account may hold a sudo rule.
+      Resolved by the elevated-mode sudoers check.
+    missing_check: sudoers_full
+    base: 0.9
+    attack: T1548.003
+    fix:
+      type: sudo
+      description: "Review sudo rules for {name} once sudoers can be read"
+      command: "Run the elevated sudoers check, then remove unneeded sudo rights for {name} with visudo"
+      rollback: "Restore the recorded sudoers entry for {name} with visudo"
+
+  - id: vulnerable_package
+    kind: cve
+    description: Installed package version is in a catalogued vulnerable range
+    attack: T1068
+    fix:
+      type: manual
+      description: "Upgrade {name} to fix {cve}"
+      command: "apt-get install --only-upgrade {name} (fixed in {fixed})"
+      rollback: "apt-get install {name}={version}"

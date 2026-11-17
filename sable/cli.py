@@ -29,15 +29,15 @@ def main(argv=None):
         if args.command == 'compare':
             from sable.report.compare import compare_scans
             from sable.redaction import redact
-            before, after = (json.loads(p.read_text()) for p in (args.before, args.after))
+            before, after = (json.loads(p.read_text(encoding='utf-8')) for p in (args.before, args.after))
             validate(before, 'results'); validate(after, 'results')
             print(dumps(redact(compare_scans(before, after))), end='')
             return 0
-        data = json.loads(args.file.read_text())
+        data = json.loads(args.file.read_text(encoding='utf-8'))
         if args.command == 'validate':
             if args.snapshot and args.kind != 'results':
                 raise ContractError('--snapshot is only valid for results')
-            snapshot = json.loads(args.snapshot.read_text()) if args.snapshot else None
+            snapshot = json.loads(args.snapshot.read_text(encoding='utf-8')) if args.snapshot else None
             validate(data, args.kind, snapshot=snapshot)
             print(f'Valid {args.kind}: {args.file}')
             return 0
@@ -47,7 +47,7 @@ def main(argv=None):
         from sable.report.terminal import terminal_summary
         config = {}
         if args.config:
-            config = yaml.safe_load(args.config.read_text())
+            config = yaml.safe_load(args.config.read_text(encoding='utf-8'))
             if not isinstance(config, dict):
                 raise ContractError('Planner config must be a mapping')
         if args.path_cutoff is not None:

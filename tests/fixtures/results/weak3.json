@@ -1,209 +1,248 @@
 {
-  "schema_version": "1.0",
-  "meta": {
-    "host": "weak3.example.test",
-    "distro": "ubuntu 22.04",
-    "kernel": "5.15.0-fixture",
-    "user": "auditor",
-    "groups": [
-      "auditor"
-    ],
-    "mode": "unprivileged",
-    "timestamp": "2026-11-14T00:00:00Z",
-    "sable_version": "0.1.0",
-    "kb_version": "fixture-1.0"
-  },
   "evidence": [
     {
-      "id": "ev-01",
-      "type": "capability",
       "data": {
-        "path": "/opt/python",
         "capabilities": [
           "cap_setuid+ep"
-        ]
+        ],
+        "path": "/opt/python"
       },
+      "id": "ev-01",
       "source_cmd": "file_capabilities",
-      "strength": "observed"
+      "strength": "observed",
+      "type": "capability"
     },
     {
-      "id": "ev-02",
-      "type": "file_permission",
       "data": {
-        "path": "/etc/shadow",
-        "owner": "root",
         "group": "shadow",
         "mode": "644",
-        "writable_by": [
-          "root"
-        ],
+        "owner": "root",
+        "path": "/etc/shadow",
         "readable_by": [
           "auditor"
+        ],
+        "writable_by": [
+          "root"
         ]
       },
+      "id": "ev-02",
       "source_cmd": "sensitive_permissions",
-      "strength": "observed"
+      "strength": "observed",
+      "type": "file_permission"
     }
   ],
-  "missing": [],
-  "no_writes": {
-    "status": "not_run",
-    "method": "none",
-    "expected_changes": [],
-    "unexpected_changes": []
+  "fix_candidates": [
+    {
+      "breaks_edges": [
+        "e-01"
+      ],
+      "command": "setcap -r /opt/python",
+      "description": "Remove file capabilities from /opt/python",
+      "execution": "recommend_only",
+      "id": "f-01",
+      "rollback": "Restore the recorded capabilities on /opt/python with setcap",
+      "type": "capability"
+    },
+    {
+      "breaks_edges": [
+        "e-02"
+      ],
+      "command": "chmod 640 /etc/shadow",
+      "description": "Restrict read access to /etc/shadow",
+      "execution": "script_and_apply",
+      "id": "f-02",
+      "rollback": "chmod 644 /etc/shadow",
+      "type": "chmod"
+    }
+  ],
+  "fix_sets": {
+    "exact": [
+      "f-01",
+      "f-02"
+    ],
+    "greedy": [
+      "f-01",
+      "f-02"
+    ],
+    "robust": [
+      "f-01",
+      "f-02"
+    ]
   },
-  "stage": "complete",
+  "fixes": [
+    {
+      "breaks_edges": [
+        "e-01"
+      ],
+      "command": "setcap -r /opt/python",
+      "description": "Remove file capabilities from /opt/python",
+      "execution": "recommend_only",
+      "id": "f-01",
+      "risk_removed": 0.9,
+      "rollback": "Restore the recorded capabilities on /opt/python with setcap",
+      "type": "capability"
+    },
+    {
+      "breaks_edges": [
+        "e-02"
+      ],
+      "command": "chmod 640 /etc/shadow",
+      "description": "Restrict read access to /etc/shadow",
+      "execution": "script_and_apply",
+      "id": "f-02",
+      "risk_removed": 0.8,
+      "rollback": "chmod 644 /etc/shadow",
+      "type": "chmod"
+    }
+  ],
+  "goals": [
+    {
+      "confidence": 0.8,
+      "goal": "asset:/etc/shadow"
+    },
+    {
+      "confidence": 0.9,
+      "goal": "root"
+    }
+  ],
   "graph": {
+    "edges": [
+      {
+        "attack": "T1548",
+        "breakdown": {
+          "base": 0.9,
+          "factor": 1.0,
+          "strength": "observed"
+        },
+        "dst": "root",
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "id": "e-01",
+        "likelihood": 0.9,
+        "rule": "setuid_capability",
+        "src": "user:auditor"
+      },
+      {
+        "attack": "T1003.008",
+        "breakdown": {
+          "base": 0.8,
+          "factor": 1.0,
+          "strength": "observed"
+        },
+        "dst": "asset:/etc/shadow",
+        "evidence_ids": [
+          "ev-02"
+        ],
+        "id": "e-02",
+        "likelihood": 0.8,
+        "rule": "readable_shadow",
+        "src": "user:auditor"
+      }
+    ],
     "nodes": [
       {
-        "id": "user:auditor",
-        "kind": "privilege"
+        "id": "asset:/etc/shadow",
+        "kind": "asset"
       },
       {
         "id": "root",
         "kind": "privilege"
       },
       {
-        "id": "asset:/etc/shadow",
-        "kind": "asset"
-      }
-    ],
-    "edges": [
-      {
-        "id": "e-01",
-        "src": "user:auditor",
-        "dst": "root",
-        "rule": "setuid_capability",
-        "evidence_ids": [
-          "ev-01"
-        ],
-        "likelihood": 0.9,
-        "breakdown": {
-          "base": 0.9,
-          "strength": "observed",
-          "factor": 1.0
-        }
-      },
-      {
-        "id": "e-02",
-        "src": "user:auditor",
-        "dst": "asset:/etc/shadow",
-        "rule": "readable_shadow",
-        "evidence_ids": [
-          "ev-02"
-        ],
-        "likelihood": 0.8,
-        "breakdown": {
-          "base": 0.8,
-          "strength": "observed",
-          "factor": 1.0
-        }
+        "id": "user:auditor",
+        "kind": "privilege"
       }
     ]
+  },
+  "meta": {
+    "distro": "ubuntu 22.04",
+    "groups": [
+      "auditor"
+    ],
+    "host": "weak3.example.test",
+    "kb_date": "2026-11-17",
+    "kb_version": "1.0.0",
+    "kernel": "5.15.0-fixture",
+    "mode": "unprivileged",
+    "sable_version": "0.1.0",
+    "timestamp": "2026-11-14T00:00:00Z",
+    "user": "auditor"
+  },
+  "missing": [],
+  "no_writes": {
+    "expected_changes": [],
+    "method": "none",
+    "status": "not_run",
+    "unexpected_changes": []
   },
   "paths": [
     {
-      "id": "p-01",
-      "entry": "user:auditor",
-      "goal": "root",
-      "edges": [
-        "e-01"
-      ],
+      "band": "High",
       "confidence": 0.9,
-      "band": "High"
+      "edges": [
+        "e-01"
+      ],
+      "entry": "user:auditor",
+      "goal": "root",
+      "id": "p-01"
     },
     {
-      "id": "p-02",
-      "entry": "user:auditor",
-      "goal": "asset:/etc/shadow",
+      "band": "High",
+      "confidence": 0.8,
       "edges": [
         "e-02"
       ],
-      "confidence": 0.8,
-      "band": "High"
-    }
-  ],
-  "goals": [
-    {
-      "goal": "root",
-      "confidence": 0.9
-    },
-    {
+      "entry": "user:auditor",
       "goal": "asset:/etc/shadow",
-      "confidence": 0.8
+      "id": "p-02"
     }
   ],
-  "unknowns": [],
-  "voi": [],
-  "fix_candidates": [
-    {
-      "id": "f-01",
-      "breaks_edges": [
-        "e-01"
-      ],
-      "type": "capability",
-      "description": "Synthetic example: setuid_capability",
-      "command": "Remove cap_setuid from /opt/python after review",
-      "rollback": "Restore recorded capabilities",
-      "execution": "recommend_only"
+  "planning": {
+    "bands": {
+      "high_min": 0.6,
+      "medium_min": 0.3
     },
-    {
-      "id": "f-02",
-      "breaks_edges": [
-        "e-02"
-      ],
-      "type": "chmod",
-      "description": "Synthetic example: readable_shadow",
-      "command": "chmod 640 /etc/shadow",
-      "rollback": "Restore recorded mode and owner",
-      "execution": "script_and_apply"
-    }
-  ],
-  "fixes": [
-    {
-      "id": "f-01",
-      "breaks_edges": [
-        "e-01"
-      ],
-      "type": "capability",
-      "description": "Synthetic example: setuid_capability",
-      "command": "Remove cap_setuid from /opt/python after review",
-      "rollback": "Restore recorded capabilities",
-      "execution": "recommend_only",
-      "risk_removed": 0.9
-    },
-    {
-      "id": "f-02",
-      "breaks_edges": [
-        "e-02"
-      ],
-      "type": "chmod",
-      "description": "Synthetic example: readable_shadow",
-      "command": "chmod 640 /etc/shadow",
-      "rollback": "Restore recorded mode and owner",
-      "execution": "script_and_apply",
-      "risk_removed": 0.8
-    }
-  ],
-  "fix_sets": {
-    "greedy": [
+    "breakable_risk": 1.7000000000000002,
+    "exact_status": "optimal",
+    "high_only_greedy": [
       "f-01",
       "f-02"
     ],
-    "exact": null,
-    "robust": null
-  },
-  "residual": {
-    "paths": [],
-    "goals": [
+    "path_cutoff": 6,
+    "risk_curve": [
       {
-        "goal": "root",
-        "confidence": 0.0
+        "fix_count": 0,
+        "percent": 0.0,
+        "risk_removed": 0.0
       },
       {
-        "goal": "asset:/etc/shadow",
-        "confidence": 0.0
+        "fix_count": 1,
+        "percent": 52.94117647058823,
+        "risk_removed": 0.9
+      },
+      {
+        "fix_count": 2,
+        "percent": 100.0,
+        "risk_removed": 1.7000000000000002
       }
     ]
-  }
+  },
+  "residual": {
+    "goals": [
+      {
+        "confidence": 0.0,
+        "goal": "asset:/etc/shadow"
+      },
+      {
+        "confidence": 0.0,
+        "goal": "root"
+      }
+    ],
+    "paths": []
+  },
+  "schema_version": "1.0",
+  "stage": "complete",
+  "unknowns": [],
+  "voi": []
 }

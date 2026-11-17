@@ -24,8 +24,8 @@ def render_html(results, secrets=()):
     return env.get_template('report.html').render(r=r, edges=edges, explanations=report_explanations(r),
         paths=sorted(r['paths'], key=lambda p: (-p['confidence'], p['id'])),
         planning=planning, curve_points=points,
-        cytoscape=root.joinpath('vendor/cytoscape.min.js').read_text(),
-        interaction=root.joinpath('templates/what_if.js').read_text())
+        cytoscape=root.joinpath('vendor/cytoscape.min.js').read_text(encoding='utf-8'),
+        interaction=root.joinpath('templates/what_if.js').read_text(encoding='utf-8'))
 
 
 def write_report(results, output_dir, secrets=()):

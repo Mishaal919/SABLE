@@ -10,3 +10,9 @@ path_cutoff: 6
 unknown_prior: 0.5
 random_seed: 0
 exact_fix_limit: 15
+# Goal confidence: exact edge enumeration up to this many edges, else Monte Carlo.
+goal_exact_edge_limit: 16
+goal_samples: 10000
+# NV-01: added to an unknown's value of information when resolving it would change
+# the top recommended fix (team default agreed 17 Nov 2026; tune with care).
+voi_bonus: 0.1

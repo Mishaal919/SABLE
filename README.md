@@ -5,9 +5,11 @@ The intended workflow is to accept SSH credentials, collect evidence using
 read-only commands, build and score attack paths, plan reversible fixes, and
 produce a full HTML report plus a terminal summary.
 
-**Current progress:** offline fix planning and reporting work against a supplied
-attack graph. Live SSH scanning, knowledge-base-driven graph generation and
-remote remediation are not implemented yet. This is not yet a complete scanner.
+**Current progress:** offline analysis works from a snapshot file: the knowledge
+base turns collected evidence into an attack graph with scored paths, unknowns and
+candidate fixes; fix planning, value-of-information ranking and reporting run on
+top of it. Live SSH collection, the `analyze`/`scan` CLI commands and remote
+remediation are not implemented yet. This is not yet a complete scanner.
 
 ## AI contributor handoff — temporary
 
@@ -23,6 +25,10 @@ or one contributor's work is complete.
 
 | Area | Working functionality |
 |---|---|
+| Knowledge base | YAML catalogues: 42 GTFOBins binaries, 18 local privilege-escalation CVEs with Debian/Ubuntu version ranges, 15 misconfiguration rules with fix/rollback templates and ATT&CK IDs; schema-validated loader that accepts drop-in rule files |
+| Attack-graph analysis | `analyze(snapshot)` builds evidence-linked edges, configurable entry points and goals, possible-entry services, unknown steps for unreadable sudoers, scored paths and candidate fixes, deterministically |
+| Scoring | Step likelihood = base x evidence-strength factor with stored breakdowns; CVSS-derived CVE bases; path products; shared-edge goal confidence; configurable bands |
+| Next best check | Value of information per unknown, using the planner to detect top-fix changes |
 | Shared contracts | Draft 2020-12 JSON Schemas for snapshots and analysis/completed results; typed evidence, missing checks, fix candidates and no-writes status |
 | Validation | Structural checks plus unique IDs, evidence/edge references, connected simple paths, confidence arithmetic, fix selections and source-snapshot preservation |
 | Candidate fixes | Instantiate KB fix templates, map fixes to edges, merge identical fixes, require rollback information |
@@ -39,8 +45,10 @@ or one contributor's work is complete.
 | Output protection | Shared redaction helper, HTML escaping, safe embedded JSON and a report policy blocking external network access |
 | Development setup | Installable Python package, CLI, configuration defaults, four synthetic target datasets, tests, CI configuration and interface documentation |
 
-The planner includes path enumeration and shared-edge-aware goal scoring so it can
-calculate residuals independently. It **does not generate attack edges from evidence**.
+The analyzer generates attack edges only from catalogued rules and cites the
+evidence for each; the planner and reporter consume that graph. Path enumeration
+and goal scoring are shared by analysis, planning and residual risk. See
+[docs/ANALYSIS.md](docs/ANALYSIS.md).
 Greedy selection is a heuristic, not a guarantee of the smallest possible fix set.
 All reported post-fix outcomes are predictions; nothing is applied to a server.
 
@@ -50,15 +58,15 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 |---|---|
 | Collection — Mishaal | SSH/password/key handling, host-key verification, read-only command allow-list, evidence checks, audit logs, authorization, timeouts and collector-side redaction |
 | Targets — Mishaal, shared tests | Actual weak1/weak2/weak3/hardened Docker targets, expected findings, setup/reset commands and live integration harness |
-| Analysis — Hamzah | KB catalogues/loaders, evidence-to-graph generation, upstream scoring, entry/goal configuration and value-of-information recommendations |
+| Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
 | Remediation — Thomas | Fix/rollback script generation, original-state recording, gated apply mode, rollback and post-change verification |
-| Orchestration — Thomas, shared integration | Live scan and offline snapshot analysis commands connecting collection, analysis, planning and reporting |
+| Orchestration — Thomas, shared integration | `sable analyze --snapshot` and `scan` commands calling `analyze`, `finalize_results`, `compute_voi` and the reporter |
 | Final evaluation | Detection accuracy, complete target acceptance checks, real rollback checks, supported-platform testing, peer review and demo rehearsal |
 
 A rollback description is required today, but rollback execution is not implemented.
 The report displays supplied certificate/VOI data; it does not perform a filesystem
-audit or calculate VOI. Synthetic fixtures are not evidence of live detection accuracy.
+audit. VOI is calculated by `sable.score.voi.compute_voi` but not yet called by the CLI. Synthetic fixtures are not evidence of live detection accuracy.
 
 ## Install and run
 
@@ -98,6 +106,21 @@ sable report tests/fixtures/results/weak3.analysis.json \
 sable compare BEFORE_RESULTS.json AFTER_RESULTS.json
 ```
 
+Until the `analyze` command is added, analyse a snapshot from Python:
+
+```python
+import json
+from sable.graph.build import analyze
+from sable.fix.planner import finalize_results
+from sable.score.voi import compute_voi
+from sable.report.html import write_report
+
+snapshot = json.load(open("tests/fixtures/snapshots/weak2.json"))
+complete = finalize_results(analyze(snapshot, {"extra_entry_points": ["www-data"]}))
+complete["voi"] = compute_voi(complete)
+write_report(complete, "output/weak2")
+```
+
 `scan`, `analyze`, `remediate` and `rollback` commands are future work. Current commands
 return exit code 0 on success and 2 for handled input/configuration/I/O errors.
 
@@ -108,9 +131,16 @@ The SSH defaults in `config/sable.yaml` are reserved for future collection; curr
 
 ## Verification status
 
-Last verified locally on **14 November 2026**:
+Last verified locally on **17 November 2026** (Windows 11, Python 3.13):
 
-- **61 Python tests passed**, covering contracts, planning, reporting and the installed CLI.
+- **171 Python tests passed**, covering the KB, graph analysis, scoring, VOI,
+  contracts, planning, reporting and the installed CLI (regular installation).
+- Result fixtures are regenerated from the snapshots by the analyzer, and a test
+  fails if they drift from it.
+
+Previously verified on **14 November 2026** (macOS, Python 3.14), before the analyzer existed:
+
+- 61 Python tests passed.
 - The guide's exact-solver example produces greedy size 3 versus exact size 2.
 - All four synthetic target reports passed isolated offline browser checks with no
   JavaScript errors or HTTP(S) requests; selecting recommended fixes matched residual predictions.
@@ -157,8 +187,10 @@ file flags. Dependencies must already be installed when using `--no-deps`.
 The installation test invokes the installed CLI outside the project directory so
 pytest's source-path configuration cannot hide this problem.
 
-`make setup` installs `.[dev,app]`; `make test` and `make validate` use the active
-Python. Override `PYTHON` if needed. No formatter or linter is currently configured.
+`make setup` installs `.[dev,app]`; `make test`, `make validate` and `make fixtures`
+(regenerate result fixtures after KB/graph changes) use the active Python. On Windows,
+use `.venv\Scripts\python` and install `setuptools` in the venv before the
+`--no-build-isolation` reinstall. Override `PYTHON` if needed. No formatter or linter is currently configured.
 
 ## Requirements, ownership and documentation
 
@@ -172,6 +204,7 @@ scope change.
 - [Feature list](SABLE_Feature_List.pdf): compatible fallback information only.
 - [Team starting guide](docs/TEAM_START.md): Mishaal/Hamzah/Thomas responsibilities.
 - [Data contracts](docs/CONTRACTS.md): shared formats and handoff rules.
+- [Analysis](docs/ANALYSIS.md): KB, attack graph, scoring and VOI APIs and acceptance status.
 - [Planning and reporting](docs/PLANNING_AND_REPORTING.md): APIs, configuration and acceptance status.
 - [Decisions](docs/DECISIONS.md): scope and unresolved integration questions.
 

@@ -11,7 +11,7 @@ FIXTURES = Path(__file__).parent / 'fixtures/results'
 
 
 def load(name):
-    return json.loads((FIXTURES / f'{name}.analysis.json').read_text())
+    return json.loads((FIXTURES / f'{name}.analysis.json').read_text(encoding='utf-8'))
 
 
 def candidate(fid, edges):

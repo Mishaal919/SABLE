@@ -1,7 +1,8 @@
 # Fix planning and reports
 
 These modules accept an already generated attack graph. They do not connect over
-SSH, generate graph edges, execute fixes, or calculate value of information.
+SSH, generate graph edges, execute fixes, or calculate value of information. Graph
+generation and VOI live in sable/graph and sable/score (see ANALYSIS.md).
 
 ## Run locally
 
@@ -59,9 +60,9 @@ path must be passed explicitly. Path cutoff is 6 by default.
 
 Goal confidence enumerates independent edge states for up to 16 edges, counting a
 shared edge once. Larger cases use 10,000 Monte Carlo samples with seed 0. Configure
-`goal_exact_edge_limit` (0–20), `goal_samples`, and `random_seed` if needed. This
-adapter exists so residual reporting works before Hamzah's scorer is available;
-it can later be replaced by his scorer while preserving the interface and tests.
+`goal_exact_edge_limit` (0–20), `goal_samples`, and `random_seed` if needed. The
+implementation now lives in sable/graph/paths.py and sable/score/goal.py and is
+re-exported by sable/fix/paths.py, so analysis, planning and residuals share it.
 
 ## KB template handoff (RP-01/RP-05)
 

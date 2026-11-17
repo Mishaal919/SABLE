@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sable.example.test/schemas/kb.schema.json",
+  "title": "SABLE knowledge-base data file",
+  "description": "Each YAML file in sable/kb/data holds one or more of meta, binaries, cves and rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "minProperties": 1,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {"type": "string", "minLength": 1},
+        "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "notes": {"type": "string", "minLength": 1}
+      },
+      "required": ["version", "date"]
+    },
+    "binaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9_+-]*$"},
+          "contexts": {
+            "type": "array",
+            "items": {"enum": ["suid", "sudo", "capability"]},
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "result": {"enum": ["root", "user"]},
+          "note": {"type": "string", "minLength": 1}
+        },
+        "required": ["name", "contexts", "result", "note"]
+      }
+    },
+    "cves": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^CVE-\\d{4}-\\d{4,}$"},
+          "name": {"type": "string", "minLength": 1},
+          "package": {"type": "string", "minLength": 1, "description": "Debian package name, or 'kernel' for the running kernel's linux-image package"},
+          "affected": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "distro": {"type": "string", "pattern": "^[a-z]+ [0-9.]+$"},
+                "introduced": {"type": "string", "minLength": 1},
+                "fixed": {"type": "string", "minLength": 1}
+              },
+              "required": ["distro", "fixed"]
+            }
+          },
+          "cvss": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "score": {"type": "number", "minimum": 0, "maximum": 10},
+              "vector": {"type": "string", "pattern": "^CVSS:3\\.[01]/AV:[NALP]/AC:[LH]/PR:[NLH]/UI:[NR]/S:[UC]/C:[NLH]/I:[NLH]/A:[NLH]$"}
+            },
+            "required": ["score", "vector"]
+          },
+          "note": {"type": "string", "minLength": 1}
+        },
+        "required": ["id", "name", "package", "affected", "cvss", "note"]
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "kind": {"enum": ["match", "credential_reuse", "unknown_sudo", "cve"]},
+          "description": {"type": "string", "minLength": 1},
+          "evidence_type": {
+            "enum": ["suid_binary", "file_permission", "sudo_rule", "scheduled_job", "service", "capability", "credential_location", "user_account", "ssh_setting", "package"]
+          },
+          "when": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "field": {"type": "string", "pattern": "^[a-z_]+$"},
+                "op": {"enum": ["eq", "ne", "in", "glob", "not_glob", "any_contains"]},
+                "value": {}
+              },
+              "required": ["field", "op", "value"]
+            }
+          },
+          "binary": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {"type": "string", "pattern": "^[a-z_]+$"},
+              "context": {"enum": ["suid", "sudo", "capability"]},
+              "allow_all": {"type": "boolean"}
+            },
+            "required": ["field", "context"]
+          },
+          "actors": {
+            "oneOf": [
+              {"const": "entries"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"field": {"type": "string", "pattern": "^[a-z_]+$"}},
+                "required": ["field"]
+              }
+            ]
+          },
+          "target": {"type": "string", "pattern": "^(root|user:.+|asset:.+|cred:.+)$"},
+          "missing_check": {"type": "string", "minLength": 1},
+          "base": {"type": "number", "minimum": 0, "maximum": 1},
+          "attack": {"type": "string", "pattern": "^T\\d{4}(\\.\\d{3})?$"},
+          "cis": {"type": "string", "minLength": 1},
+          "fix": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {"enum": ["chmod", "chown", "capability", "sudo", "service", "manual"]},
+              "description": {"type": "string", "minLength": 1},
+              "command": {"type": "string", "minLength": 1},
+              "rollback": {"type": "string", "minLength": 1}
+            },
+            "required": ["type", "description", "command", "rollback"]
+          }
+        },
+        "required": ["id", "kind", "description", "attack", "fix"],
+        "allOf": [
+          {
+            "if": {"properties": {"kind": {"const": "match"}}},
+            "then": {"required": ["evidence_type", "when", "actors", "target", "base"]}
+          },
+          {
+            "if": {"properties": {"kind": {"enum": ["credential_reuse", "unknown_sudo"]}}},
+            "then": {"required": ["base"]}
+          },
+          {
+            "if": {"properties": {"kind": {"const": "unknown_sudo"}}},
+            "then": {"required": ["missing_check"]}
+          }
+        ]
+      }
+    }
+  }
+}

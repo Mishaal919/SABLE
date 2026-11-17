@@ -1,116 +1,118 @@
 {
-  "schema_version": "1.0",
-  "meta": {
-    "host": "weak2.example.test",
-    "distro": "ubuntu 22.04",
-    "kernel": "5.15.0-fixture",
-    "user": "auditor",
-    "groups": [
-      "auditor"
-    ],
-    "mode": "unprivileged",
-    "timestamp": "2026-11-14T00:00:00Z",
-    "sable_version": "0.1.0",
-    "kb_version": "fixture-1.0"
-  },
   "evidence": [
     {
-      "id": "ev-01",
-      "type": "scheduled_job",
       "data": {
-        "scheduler": "cron",
         "run_as": "root",
-        "script_path": "/opt/backup.sh",
-        "script_owner": "root",
+        "scheduler": "cron",
         "script_group": "root",
         "script_mode": "777",
+        "script_owner": "root",
+        "script_path": "/opt/backup.sh",
         "writable_by": [
           "www-data"
         ]
       },
+      "id": "ev-01",
       "source_cmd": "scheduled_jobs",
-      "strength": "observed"
+      "strength": "observed",
+      "type": "scheduled_job"
     }
   ],
-  "missing": [],
-  "no_writes": {
-    "status": "not_run",
-    "method": "none",
-    "expected_changes": [],
-    "unexpected_changes": []
+  "fix_candidates": [
+    {
+      "breaks_edges": [
+        "e-01"
+      ],
+      "command": "chown root:root /opt/backup.sh && chmod 755 /opt/backup.sh",
+      "description": "Make /opt/backup.sh owned and writable only by root",
+      "execution": "script_and_apply",
+      "id": "f-01",
+      "rollback": "chown root:root /opt/backup.sh && chmod 777 /opt/backup.sh",
+      "type": "chown"
+    }
+  ],
+  "fix_sets": {
+    "exact": null,
+    "greedy": [],
+    "robust": null
   },
-  "stage": "analysis",
+  "fixes": [],
+  "goals": [
+    {
+      "confidence": 0.9,
+      "goal": "root"
+    }
+  ],
   "graph": {
+    "edges": [
+      {
+        "attack": "T1053.003",
+        "breakdown": {
+          "base": 0.9,
+          "factor": 1.0,
+          "strength": "observed"
+        },
+        "dst": "root",
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "id": "e-01",
+        "likelihood": 0.9,
+        "rule": "writable_root_cron",
+        "src": "user:www-data"
+      }
+    ],
     "nodes": [
       {
-        "id": "user:auditor",
+        "id": "root",
         "kind": "privilege"
       },
       {
-        "id": "root",
+        "id": "user:auditor",
         "kind": "privilege"
       },
       {
         "id": "user:www-data",
         "kind": "privilege"
       }
-    ],
-    "edges": [
-      {
-        "id": "e-01",
-        "src": "user:www-data",
-        "dst": "root",
-        "rule": "writable_root_cron",
-        "evidence_ids": [
-          "ev-01"
-        ],
-        "likelihood": 0.9,
-        "breakdown": {
-          "base": 0.9,
-          "strength": "observed",
-          "factor": 1.0
-        }
-      }
     ]
+  },
+  "meta": {
+    "distro": "ubuntu 22.04",
+    "groups": [
+      "auditor"
+    ],
+    "host": "weak2.example.test",
+    "kb_date": "2026-11-17",
+    "kb_version": "1.0.0",
+    "kernel": "5.15.0-fixture",
+    "mode": "unprivileged",
+    "sable_version": "0.1.0",
+    "timestamp": "2026-11-14T00:00:00Z",
+    "user": "auditor"
+  },
+  "missing": [],
+  "no_writes": {
+    "expected_changes": [],
+    "method": "none",
+    "status": "not_run",
+    "unexpected_changes": []
   },
   "paths": [
     {
-      "id": "p-01",
-      "entry": "user:www-data",
-      "goal": "root",
+      "band": "High",
+      "confidence": 0.9,
       "edges": [
         "e-01"
       ],
-      "confidence": 0.9,
-      "band": "High"
-    }
-  ],
-  "goals": [
-    {
+      "entry": "user:www-data",
       "goal": "root",
-      "confidence": 0.9
+      "id": "p-01"
     }
   ],
+  "residual": null,
+  "schema_version": "1.0",
+  "stage": "analysis",
   "unknowns": [],
-  "voi": [],
-  "fix_candidates": [
-    {
-      "id": "f-01",
-      "breaks_edges": [
-        "e-01"
-      ],
-      "type": "chmod",
-      "description": "Synthetic example: writable_root_cron",
-      "command": "chmod 755 /opt/backup.sh",
-      "rollback": "Restore recorded mode and owner",
-      "execution": "script_and_apply"
-    }
-  ],
-  "fixes": [],
-  "fix_sets": {
-    "greedy": [],
-    "exact": null,
-    "robust": null
-  },
-  "residual": null
+  "voi": []
 }

@@ -9,9 +9,10 @@ Read CONTRACTS.md first. Validate every producer's output before handing it off.
 | Thomas | fix/, report/, CLI orchestration against analysis fixtures | pure greedy planner early for VOI; complete results for reporting |
 | Shared | redaction helper, schema changes, integration cases | producer + consumer review for every contract change |
 
-Module names follow the guide. Fix planning and HTML/terminal reporting are now
-implemented; see PLANNING_AND_REPORTING.md. Collection, KB data, attack-graph
-generation, Docker targets and target integration tests are still to be implemented. Do not run fixture `command` strings as an execution API.
+Module names follow the guide. Fix planning and HTML/terminal reporting are
+implemented (PLANNING_AND_REPORTING.md), as are the KB, attack-graph generation,
+scoring and VOI (ANALYSIS.md). Collection, Docker targets, the analyze/scan CLI
+commands and target integration tests are still to be implemented. Do not run fixture `command` strings as an execution API.
 
 First integration milestone: collect one lab snapshot -> validate -> analyse ->
 validate analysis -> plan and compute residual -> populate VOI -> validate complete

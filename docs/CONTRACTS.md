@@ -2,8 +2,8 @@
 
 Thomas confirmed the developer guide's graph, fixes, and reports design as the project scope. The feature list v2 describes
 an incompatible Gemini-based replacement. We have not silently combined the two.
-The project implements these data boundaries plus offline planning and reporting;
-SSH scanning and graph generation are separate integration tasks.
+The project implements these data boundaries, evidence-to-graph analysis (see
+ANALYSIS.md) and offline planning and reporting; SSH scanning is a separate task.
 See DECISIONS.md for scope questions. All fixtures are synthetic, not measured scans.
 
 ## Pipeline and ownership
@@ -76,6 +76,19 @@ Nodes use privilege/asset/credential kinds; e.g. user:auditor, root, asset:/etc/
 All edges reference evidence. Unknown-dependent edges additionally use unknown_id.
 A missing check alone does not create an escalation edge.
 
+The analyzer (`sable.graph.build.analyze`) is the producer of analysis results.
+Credential nodes are `cred:<file path>`; services listening on non-loopback
+addresses become `service:<name>` nodes with `possible_entry: true` and no edges.
+Goals are root, every reachable asset/credential node and configured asset goals.
+Edge IDs follow evidence order (`e-NN`), paths descending confidence (`p-NN`),
+candidates their first broken edge (`f-NN`), unknowns `u-NN`.
+
+Unknown-dependent edges: an unknown is created only when a rule has real evidence
+(e.g. a user_account record) **and** the matching check is listed in `missing`
+(currently `sudoers_full`). The edge has strength `unknown` and an `unknown_id`;
+the unknown's `resolving_check` names that check. Credential reuse is an
+`inferred` edge from `cred:<path>` to an interactive account, never `observed`.
+
 Edge likelihood = breakdown.base * breakdown.factor. Path confidence is the
 product of edge likelihoods, assuming independent steps. Goal confidence must
 account for shared edges, not sum path probabilities. Bands come from scoring.yaml.
@@ -112,11 +125,16 @@ object keys and no non-finite numbers. Optional graph image/HTML never changes J
 
 ## Fixture limitations
 
-weak1 demonstrates readable credentials and an unavailable sudoers check. It does
-not claim credential reuse or a root chain: the guide supplies no safe evidence
-contract proving reuse. weak2 requires www-data as an extra entry. weak3 contains
-capability and shadow paths. hardened is a clean synthetic example. Committed complete
-fixtures are hand-authored examples. The planner tests independently compute
-completed results and test the guide's exact-solver counterexample.
+weak1 demonstrates readable credentials and an unavailable sudoers check. Its
+synthetic snapshot has no user_account records, so the analyzer produces no
+credential-reuse or unknown-sudo edge and no root chain. When a real weak1 snapshot
+includes dbadmin's account record, the analyzer will add the inferred
+cred -> dbadmin and unknown dbadmin -> root steps (a Low path to root) plus an
+unknown for sudoers_full; reporting tests that assert "no dbadmin" must then be
+revisited. weak2 requires www-data as an extra entry. weak3 contains capability and
+shadow paths. hardened is a clean synthetic example. Since 17 Nov 2026 all result
+fixtures are generated from the snapshots by tests/fixtures/regenerate.py (analysis
+via analyze, complete via finalize_results + compute_voi). The planner tests
+independently compute completed results and test the guide's exact-solver counterexample.
 Before integration, Mishaal must supply actual snapshots and expected.yaml for each
 lab target and the team must resolve weak1's missing evidence model.

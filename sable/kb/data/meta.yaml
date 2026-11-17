@@ -1,0 +1,8 @@
+# KB-05: catalogue version, copied into results.json meta.kb_version / kb_date.
+meta:
+  version: "1.0.0"
+  date: "2026-11-17"
+  notes: >-
+    Binary entries follow GTFOBins. CVE fixed versions were compiled from Ubuntu
+    USN and Debian DSA advisories and must be cross-checked against the official
+    security trackers before results are relied upon. ATT&CK IDs use Enterprise v14.
