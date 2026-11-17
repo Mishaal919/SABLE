@@ -8,8 +8,11 @@ produce a full HTML report plus a terminal summary.
 **Current progress:** offline analysis works from a snapshot file: the knowledge
 base turns collected evidence into an attack graph with scored paths, unknowns and
 candidate fixes; fix planning, value-of-information ranking and reporting run on
-top of it. Live SSH collection, the `analyze`/`scan` CLI commands and remote
-remediation are not implemented yet. This is not yet a complete scanner.
+top of it. The read-only SSH collector, its command allow-list/audit log, the four
+Docker lab targets and an offline target-acceptance harness are now implemented
+(`python -m sable.collect`). Still outstanding: building/running the Docker lab for
+live scans, the `analyze`/`scan` CLI commands and remote remediation. This is not
+yet a fully wired end-to-end scanner.
 
 ## AI contributor handoff — temporary
 
@@ -43,6 +46,9 @@ or one contributor's work is complete.
 | Exports | Schema-validated results.json, summary.txt and a printed terminal summary showing top paths, top three fixes and scan mode |
 | Optional reporting | CIS tags and KB date where supplied; structural scan comparison showing added/removed paths and confidence changes |
 | Output protection | Shared redaction helper, HTML escaping, safe embedded JSON and a report policy blocking external network access |
+| Collection (Mishaal) | Read-only SSH collector: frozen command allow-list and single `exec_command` gateway, audit log, authorisation prompt, host-key-verified paramiko connection, EC-03..EC-12 evidence parsers, source-side credential redaction, deterministic schema-valid snapshots, unprivileged/elevated modes, timeouts and a `python -m sable.collect` runner |
+| No-writes certificate | NV-02 fingerprint/certificate logic: docker-diff and hash comparison, allow-listed expected changes, unexpected-write flagging (live diff pending Docker) |
+| Lab targets (Mishaal) | weak1/weak2/weak3/hardened with Dockerfile, authored snapshot and expected.yaml; docker-compose (ports 2221-2224) and `make targets-up/reset`; offline integration harness with a break-a-rule meta-check |
 | Development setup | Installable Python package, CLI, configuration defaults, four synthetic target datasets, tests, CI configuration and interface documentation |
 
 The analyzer generates attack edges only from catalogued rules and cites the
@@ -56,8 +62,8 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 
 | Area | Remaining work |
 |---|---|
-| Collection — Mishaal | SSH/password/key handling, host-key verification, read-only command allow-list, evidence checks, audit logs, authorization, timeouts and collector-side redaction |
-| Targets — Mishaal, shared tests | Actual weak1/weak2/weak3/hardened Docker targets, expected findings, setup/reset commands and live integration harness |
+| Collection — Mishaal | ~~SSH/password/key handling, host-key verification, read-only command allow-list, evidence checks, audit logs, authorization, timeouts and collector-side redaction~~ implemented; remaining: live scan against running containers and byte-identical live-vs-snapshot confirmation (EC-13) |
+| Targets — Mishaal, shared tests | Target definitions, expected findings and the offline harness are implemented; remaining: build/run the Docker lab (`make targets-up`) and the live integration run |
 | Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
 | Remediation — Thomas | Fix/rollback script generation, original-state recording, gated apply mode, rollback and post-change verification |
@@ -121,7 +127,28 @@ complete["voi"] = compute_voi(complete)
 write_report(complete, "output/weak2")
 ```
 
-`scan`, `analyze`, `remediate` and `rollback` commands are future work. Current commands
+Run the read-only collector against a host (writes a redacted, schema-valid snapshot):
+
+```sh
+# Bring up the Docker lab targets first (ports 2221-2224):
+make targets-up
+
+# Collect weak1 over SSH (auditor / auditorpass are lab-only):
+SABLE_PW=auditorpass python -m sable.collect auditor@localhost --port 2221 \
+  --password-env SABLE_PW --yes --output output/weak1.snapshot.json
+
+# Then analyse the snapshot from Python (see the example below) or validate it:
+sable validate snapshot output/weak1.snapshot.json
+```
+
+Offline target acceptance runs without Docker:
+
+```sh
+make integration   # analyses each target's authored snapshot vs expected.yaml
+```
+
+The `scan`, `analyze`, `remediate` and `rollback` CLI subcommands are future work
+(the collector is usable now via `python -m sable.collect`). Current commands
 return exit code 0 on success and 2 for handled input/configuration/I/O errors.
 
 Install `.[dev,app]` when implementing Paramiko SSH collection and NetworkX analysis.
@@ -150,6 +177,12 @@ Previously verified on **14 November 2026** (macOS, Python 3.14), before the ana
 
 These are local results, not a claim that GitHub CI or live target tests have run.
 CI is configured for Python 3.10 and 3.12; the latest local environment used Python 3.14.
+
+The collection modules, lab targets and integration harness added in Mishaal's push
+were verified with `python -m pytest -q` on CPython 3.12.16: **252 passed, 6 skipped**
+(the skips are per-target conditional integration checks). This includes
+`tests/test_collect_*.py` and the offline target acceptance in `tests/integration/`.
+The Docker lab (`make targets-up`) and the live SSH scan remain the follow-up.
 
 ```sh
 python -m pytest -q

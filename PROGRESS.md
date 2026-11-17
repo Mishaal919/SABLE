@@ -1,6 +1,6 @@
 # SABLE development handoff for AI contributors
 
-Last updated: **17 November 2026** (Asia/Karachi), after Hamzah's analysis push.
+Last updated: **17 November 2026** (Asia/Karachi), after Mishaal's collection push.
 
 Read this entire file before planning changes. Then follow the reading order below
 and inspect the actual code you will change. This is a maintained handoff, not proof
@@ -8,7 +8,55 @@ that the repository cannot have changed since the last update. Reconcile discrep
 with current code and the user's instructions; do not silently discard their decisions.
 Update this file and README.md after material implementation or status changes.
 
-## 0. Latest change: Hamzah's analysis push (17 November 2026)
+## 0. Latest change: Mishaal's collection push (17 November 2026)
+
+Read this first if you last worked on the repository before this push.
+
+**New (Mishaal's guide scope, pages 4-7):**
+- `sable/collect/`: `allowlist.py` (EC-02 frozen command registry + `CommandRunner`,
+  the only `exec_command` caller), `audit.py` (CL-03), `authorize.py` (CL-04),
+  `ssh.py` (EC-01 paramiko, host-key policy, lazy import), `certificate.py` (NV-02),
+  `collector.py` (`run_collection`/`assemble_snapshot`/`collect_snapshot`, EC-13/14/16),
+  `errors.py`, `__main__.py` (`python -m sable.collect`), and `checks/*.py` pure
+  parsers for EC-03..EC-12. No SSH or Docker is needed to unit-test the parsers or the
+  collector (an injectable runner feeds canned command output).
+- `targets/`: weak1/weak2/weak3/hardened each with a `Dockerfile`, an authored
+  `snapshot.json` (faithful collector output) and an `expected.yaml`; `docker-compose.yml`
+  (ports 2221-2224) and `make targets-up/reset/down` (TE-04).
+- `tests/integration/test_targets.py`: offline TE-01/02/03 acceptance over the target
+  snapshots incl. a break-a-rule meta-check; `tests/test_collect_*.py` unit tests.
+- `docs/COLLECTION.md`: architecture, evidence contract and the acceptance matrix.
+- `Makefile`: `integration`, `targets-up`, `targets-reset`, `targets-down`.
+
+**Decisions / coordination:**
+- Unprivileged scans always record a `sudoers_full` missing check (EC-15), so the
+  analyzer models the unknown escalation for interactive non-scan accounts. The scan
+  user and nologin/system accounts never produce an unknown edge.
+- `writable_by`/`readable_by` are expanded to concrete account names (service
+  accounts included) so the analyzer's actor match works; this is the "expand groups"
+  assumption CONTRACTS flagged — now satisfied by the collector.
+- weak1 is modelled **faithfully with dbadmin**, so the analyzer emits the
+  credential-reuse + unknown-sudo chain. The synthetic `tests/fixtures/snapshots/weak1.json`
+  and Thomas's "no dbadmin" explanation test are **untouched**; that test runs on the
+  synthetic fixture, not the target, so it still passes. Revisit when the real weak1
+  snapshot becomes canonical (DECISIONS item 1).
+- `sable scan` / `sable analyze --snapshot` CLI subcommands remain Thomas's (cli.py);
+  the collector is exposed as a library plus `python -m sable.collect` to avoid editing
+  cli.py mid-handoff. Thomas wires: `collect_snapshot -> analyze -> finalize_results ->
+  compute_voi -> write_report`.
+- **Verified:** `python -m pytest -q` on CPython 3.12.16 (uv venv) → **252 passed,
+  6 skipped** (the skips are the per-target conditional integration checks:
+  requires-entry-point is weak2-only, unknown-resolving-check is weak1-only). The 27
+  `tests/integration/test_targets.py` cases pass, including the break-a-rule
+  meta-check. Three bugs were found and fixed during this run: `group_members` read
+  account fields at the wrong nesting level (evidence has them under `data`); the
+  credential password regex used a leading `\b` that missed prefixed keys like
+  `db_password`; and the command-arg safe-value pattern now allows spaces (neutralised
+  by `shlex.quote`) so real paths with spaces are not rejected. Remaining follow-up:
+  the live Docker lab (TE-01/02/04 build, live EC-01/EC-13, real NV-02 docker diff,
+  NF-03 multi-version).
+
+## 0b. Earlier change: Hamzah's analysis push (17 November 2026)
 
 Read this first if you last worked on the repository before 17 November.
 
@@ -139,10 +187,17 @@ Working code:
 | `sable/report/vendor/` | Cytoscape.js 3.30.4 and MIT license |
 | `schemas/` | Versioned snapshot/results JSON Schemas, installed as package resources |
 
-Scaffolding, not implementations: `sable/collect/`, `sable/remediate/`. Their
-package files do not imply that SSH collection or apply/rollback works.
-`targets/` and `tests/integration/` currently contain guidance, not Docker targets
-or a working live integration harness.
+Implemented since this push: `sable/collect/` (allow-list, audit, authorise, ssh,
+certificate, collector and EC-03..EC-12 parsers), the four `targets/` (Dockerfile +
+authored snapshot + expected.yaml + compose) and `tests/integration/test_targets.py`
+(offline harness). See `docs/COLLECTION.md`. The authored target snapshots are
+stand-ins until the Docker lab is built and a live snapshot replaces each; the new
+tests pass (252 passed, 6 skipped on CPython 3.12.16).
+
+Still scaffolding, not implementations: `sable/remediate/` (Thomas). Its package
+files do not imply that apply/rollback works. Live SSH scanning against running
+containers, the `scan`/`analyze` CLI wiring and the real NV-02 docker-diff run are
+the remaining collection-side follow-ups.
 
 Other assets: pyproject.toml, Makefile, public YAML defaults, .gitignore, four
 synthetic snapshots, eight analysis/completed results generated from them by
@@ -483,8 +538,11 @@ no-writes safety, real detection accuracy, rollback correctness or distro suppor
 
 1. Coordinate the implemented contracts with Mishaal/Hamzah. Preserve the working
    planner/report API while adding real producers; avoid starting a second schema.
-2. Build collector connection/safety foundations and real lab targets. Get one
-   authentic redacted snapshot through validation before broadening checks.
+2. ~~Collector connection/safety foundations, parsers and lab target definitions~~
+   done (Mishaal, this push): `sable/collect/`, `targets/` and the offline harness.
+   Remaining: build/run the Docker lab, capture one authentic redacted snapshot per
+   target and confirm it is byte-identical to the authored stand-in (EC-13), then run
+   the live integration and NV-02 docker-diff checks.
 3. ~~KB loaders/rules and evidence-to-graph generation~~ done (17 Nov). Remaining:
    cross-check `cves.yaml` fixed versions against the Ubuntu/Debian trackers; extend
    rules when real snapshots show gaps (group-based permissions, SGID, other caps).

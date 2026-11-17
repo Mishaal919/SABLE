@@ -1,0 +1,19 @@
+# TE-01 acceptance for weak3: a copy of python with cap_setuid+ep gives root, and a
+# world-readable /etc/shadow exposes the password hashes. Two independent goals.
+target: weak3
+scan_user: auditor
+extra_entry_points: []
+asset_goals: []
+expected_paths:
+  - entry: "user:auditor"
+    goal: "root"
+    band: High
+  - entry: "user:auditor"
+    goal: "asset:/etc/shadow"
+    band: High
+expected_fixes:
+  - type: capability
+    matches: "/opt/python"
+  - type: chmod
+    matches: "/etc/shadow"
+forbid_root_paths: false

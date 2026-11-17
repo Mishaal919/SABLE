@@ -1,0 +1,24 @@
+# TE-01 acceptance for weak1: readable config.php holds a DB password reused by the
+# local user dbadmin, who (unreadably, in an unprivileged scan) has a sudo rule.
+# Expected chain: auditor -> cred -> dbadmin -> root, Low because dbadmin's sudo is
+# unknown; plus the readable credential itself. NV-01 should want the elevated
+# sudoers check. This is the faithful chain and includes dbadmin (see PROGRESS /
+# docs: Thomas's "no dbadmin" explanation test runs on the synthetic fixture, not
+# this target, so it is unaffected; revisit at integration time).
+target: weak1
+scan_user: auditor
+extra_entry_points: []
+asset_goals: []
+expected_paths:
+  - entry: "user:auditor"
+    goal: "cred:/var/www/config.php"
+    band: High
+  - entry: "user:auditor"
+    goal: "root"
+    band: Low
+expected_fixes:
+  - type: chmod
+    matches: "/var/www/config.php"
+  - type: sudo
+forbid_root_paths: false
+expect_unknown_resolving_check: sudoers_full
