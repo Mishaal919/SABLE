@@ -1,0 +1,18 @@
+# TE-01 acceptance for weak2: a root cron job runs /opt/backup.sh, which is
+# group-writable by www-data. The escalation only exists from www-data, so the path
+# must appear ONLY when www-data is enabled as an entry point (AG-02).
+target: weak2
+scan_user: auditor
+extra_entry_points:
+  - www-data
+asset_goals: []
+expected_paths:
+  - entry: "user:www-data"
+    goal: "root"
+    band: High
+expected_fixes:
+  - type: chown
+    matches: "/opt/backup.sh"
+forbid_root_paths: false
+# Without the www-data entry point there must be no path at all (AG-02).
+requires_entry_point: www-data

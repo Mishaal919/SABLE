@@ -1,0 +1,45 @@
+# TE-04: one-command lab. `make targets-up` builds and starts all four targets;
+# SSH is published on 2221-2224. Scan account: auditor / auditorpass (lab only).
+#
+#   weak1  -> localhost:2221
+#   weak2  -> localhost:2222
+#   weak3  -> localhost:2223
+#   hardened -> localhost:2224
+services:
+  weak1:
+    build: ./weak1
+    container_name: sable-weak1
+    ports:
+      - "2221:22"
+  weak2:
+    build: ./weak2
+    container_name: sable-weak2
+    ports:
+      - "2222:22"
+  weak3:
+    build: ./weak3
+    container_name: sable-weak3
+    ports:
+      - "2223:22"
+  hardened:
+    build: ./hardened
+    container_name: sable-hardened
+    ports:
+      - "2224:22"
+  # NF-03 base-image compatibility: same collector, different distros.
+  compat-ubuntu2404:
+    build:
+      context: ./compat
+      args:
+        BASE: "ubuntu:24.04"
+    container_name: sable-compat-2404
+    ports:
+      - "2225:22"
+  compat-debian12:
+    build:
+      context: ./compat
+      args:
+        BASE: "debian:12"
+    container_name: sable-compat-deb12
+    ports:
+      - "2226:22"

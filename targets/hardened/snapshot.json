@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "host": "hardened.example.test",
+    "distro": "ubuntu 22.04",
+    "kernel": "5.15.0-generic",
+    "user": "auditor",
+    "groups": [
+      "auditor"
+    ],
+    "mode": "unprivileged",
+    "timestamp": "2026-11-17T00:00:00Z",
+    "sable_version": "0.1.0",
+    "architecture": "x86_64"
+  },
+  "evidence": [
+    {
+      "id": "ev-01",
+      "type": "suid_binary",
+      "data": {
+        "path": "/usr/bin/mount",
+        "owner": "root",
+        "group": "root",
+        "mode": "4755",
+        "suid": true,
+        "sgid": false
+      },
+      "source_cmd": "suid_find",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-02",
+      "type": "suid_binary",
+      "data": {
+        "path": "/usr/bin/su",
+        "owner": "root",
+        "group": "root",
+        "mode": "4755",
+        "suid": true,
+        "sgid": false
+      },
+      "source_cmd": "suid_find",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-03",
+      "type": "file_permission",
+      "data": {
+        "path": "/etc/shadow",
+        "owner": "root",
+        "group": "shadow",
+        "mode": "640",
+        "writable_by": [
+          "root"
+        ],
+        "readable_by": [
+          "root"
+        ]
+      },
+      "source_cmd": "sensitive_permissions",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-04",
+      "type": "user_account",
+      "data": {
+        "name": "root",
+        "uid": 0,
+        "gid": 0,
+        "groups": [
+          "root"
+        ],
+        "home": "/root",
+        "shell": "/bin/bash"
+      },
+      "source_cmd": "user_accounts",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-05",
+      "type": "user_account",
+      "data": {
+        "name": "auditor",
+        "uid": 1000,
+        "gid": 1000,
+        "groups": [
+          "auditor"
+        ],
+        "home": "/home/auditor",
+        "shell": "/bin/bash"
+      },
+      "source_cmd": "user_accounts",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-06",
+      "type": "ssh_setting",
+      "data": {
+        "name": "PermitRootLogin",
+        "value": "no",
+        "effective": true
+      },
+      "source_cmd": "ssh_settings",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-07",
+      "type": "ssh_setting",
+      "data": {
+        "name": "PasswordAuthentication",
+        "value": "no",
+        "effective": true
+      },
+      "source_cmd": "ssh_settings",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-08",
+      "type": "service",
+      "data": {
+        "name": "sshd",
+        "package": "openssh-server",
+        "version": null,
+        "running": true,
+        "listeners": [
+          {
+            "address": "0.0.0.0",
+            "port": 22,
+            "protocol": "tcp"
+          }
+        ]
+      },
+      "source_cmd": "services",
+      "strength": "observed"
+    }
+  ],
+  "missing": [
+    {
+      "check": "sudoers_full",
+      "reason": "permission_denied"
+    }
+  ],
+  "no_writes": {
+    "status": "not_run",
+    "method": "none",
+    "expected_changes": [],
+    "unexpected_changes": []
+  }
+}

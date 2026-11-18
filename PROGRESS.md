@@ -1,6 +1,6 @@
 # SABLE development handoff for AI contributors
 
-Last updated: **17 November 2026** (Asia/Karachi), after Hamzah's analysis push.
+Last updated: **18 November 2026** (Asia/Karachi), after remediation + end-to-end CLI.
 
 Read this entire file before planning changes. Then follow the reading order below
 and inspect the actual code you will change. This is a maintained handoff, not proof
@@ -8,7 +8,109 @@ that the repository cannot have changed since the last update. Reconcile discrep
 with current code and the user's instructions; do not silently discard their decisions.
 Update this file and README.md after material implementation or status changes.
 
-## 0. Latest change: Hamzah's analysis push (17 November 2026)
+## 0. Latest change: remediation + end-to-end CLI (18 November 2026)
+
+Read this first if you last worked on the repository before this push.
+
+**New (completes Thomas's RM-* and CL-01, and shared CI/compat):**
+- `sable/remediate/`: `operations.py` (parse a fix command into validated chmod/chown
+  operations — never executes a raw string), `scripts.py` (RM-01/RM-04 fix.sh +
+  rollback.sh; chmod/chown only, sudo/service/capability/manual are commented
+  recommendations), `apply.py` (RM-02 gated apply, records state.json first;
+  RM-05 `residual_matches`), `rollback.py` (RM-03), `runner.py` (`LocalRunner`;
+  stat/chmod/chown via argument lists, no shell), `errors.py`.
+- `sable/cli.py`: now dispatches `validate | analyze | scan | plan | report |
+  remediate | rollback | compare` (CL-01). `analyze <snapshot>` and
+  `scan user@host` run the full pipeline: analyze -> finalize_results ->
+  compute_voi -> write_report (VOI is now wired into the CLI). `scan` calls
+  `collect_snapshot`. Existing commands are unchanged (same handlers, exit codes).
+- `tests/test_remediate.py`, `tests/test_cli_commands.py` (new; apply/rollback use a
+  fake runner, so no real chmod runs in CI — real execution is covered by the Docker
+  lab). `.github/workflows/ci.yml` runs the suite on Python 3.10 and 3.12.
+- `.gitignore` adds `.venv*/`, `state.json`, `audit.log`.
+
+**Verified (offline):** `python -m pytest -q` -> **275 passed, 6 skipped** on CPython
+3.10.22 **and** 3.12.16 (NF-03 multi-version). The installed-CLI test and offline
+target harness pass.
+
+**Verified (LIVE, 18 November 2026, Docker 29.8.2):** `make targets-up` built and ran
+all four targets on 2221-2224 (TE-04). `sable scan auditor@localhost --port ...` over
+real SSH produced the expected findings on every target: weak1 `config.php`
+credential + the `auditor -> cred -> dbadmin -> root` Low chain + `sudoers_full`
+unknown + a non-empty VOI; weak2 `www-data -> root` High (only with www-data entry,
+AG-02) and the chown fix; weak3 root (capability) and `asset:/etc/shadow` with the
+setcap + chmod fixes; hardened zero paths to root and zero High paths (TE-02). NV-02:
+`docker diff` of hardened after a scan is **passed** with no unexpected changes.
+RM-01/RP-05 full cycle on weak2: generated `fix.sh` made `/opt/backup.sh`
+`755 root:root`, a rescan showed **0 root paths**, `rollback.sh` restored
+`775 root:www-data` (stat identical) and a rescan showed the path **back**.
+
+The live run also fixed three real collector bugs the offline parser tests missed
+(dpkg `${Package}` brace escaping, `stat -c` not interpreting `\t` -> `--printf`,
+credential scan over-scoping) plus the NV-02 ancestor-directory handling and a
+fix.sh CRLF-newline bug; all have new guard tests.
+
+NF-03 base-image breadth is now also done live: `compat-ubuntu2404` (ubuntu 24.04)
+and `compat-debian12` (debian:12) targets (ports 2225/2226) scan correctly - the
+collector parses each distro and detects the planted world-readable `/etc/shadow`.
+
+**Still outstanding (optional / team):** AG-07 optional graph SVG (Should; the
+Cytoscape view covers it), the CVE fixed-version cross-check against official
+trackers, and the guide's human peer review of each member's PR. The handoff section
+in README stays until peer review is done.
+
+**Capability policy unchanged:** capability fixes stay recommend-only (not scripted,
+not applied); only chmod/chown are applyable (RM-04). DECISIONS item 5 holds.
+
+## 0a. Earlier change: Mishaal's collection push (17 November 2026)
+
+Read this first if you last worked on the repository before this push.
+
+**New (Mishaal's guide scope, pages 4-7):**
+- `sable/collect/`: `allowlist.py` (EC-02 frozen command registry + `CommandRunner`,
+  the only `exec_command` caller), `audit.py` (CL-03), `authorize.py` (CL-04),
+  `ssh.py` (EC-01 paramiko, host-key policy, lazy import), `certificate.py` (NV-02),
+  `collector.py` (`run_collection`/`assemble_snapshot`/`collect_snapshot`, EC-13/14/16),
+  `errors.py`, `__main__.py` (`python -m sable.collect`), and `checks/*.py` pure
+  parsers for EC-03..EC-12. No SSH or Docker is needed to unit-test the parsers or the
+  collector (an injectable runner feeds canned command output).
+- `targets/`: weak1/weak2/weak3/hardened each with a `Dockerfile`, an authored
+  `snapshot.json` (faithful collector output) and an `expected.yaml`; `docker-compose.yml`
+  (ports 2221-2224) and `make targets-up/reset/down` (TE-04).
+- `tests/integration/test_targets.py`: offline TE-01/02/03 acceptance over the target
+  snapshots incl. a break-a-rule meta-check; `tests/test_collect_*.py` unit tests.
+- `docs/COLLECTION.md`: architecture, evidence contract and the acceptance matrix.
+- `Makefile`: `integration`, `targets-up`, `targets-reset`, `targets-down`.
+
+**Decisions / coordination:**
+- Unprivileged scans always record a `sudoers_full` missing check (EC-15), so the
+  analyzer models the unknown escalation for interactive non-scan accounts. The scan
+  user and nologin/system accounts never produce an unknown edge.
+- `writable_by`/`readable_by` are expanded to concrete account names (service
+  accounts included) so the analyzer's actor match works; this is the "expand groups"
+  assumption CONTRACTS flagged — now satisfied by the collector.
+- weak1 is modelled **faithfully with dbadmin**, so the analyzer emits the
+  credential-reuse + unknown-sudo chain. The synthetic `tests/fixtures/snapshots/weak1.json`
+  and Thomas's "no dbadmin" explanation test are **untouched**; that test runs on the
+  synthetic fixture, not the target, so it still passes. Revisit when the real weak1
+  snapshot becomes canonical (DECISIONS item 1).
+- `sable scan` / `sable analyze --snapshot` CLI subcommands remain Thomas's (cli.py);
+  the collector is exposed as a library plus `python -m sable.collect` to avoid editing
+  cli.py mid-handoff. Thomas wires: `collect_snapshot -> analyze -> finalize_results ->
+  compute_voi -> write_report`.
+- **Verified:** `python -m pytest -q` on CPython 3.12.16 (uv venv) → **252 passed,
+  6 skipped** (the skips are the per-target conditional integration checks:
+  requires-entry-point is weak2-only, unknown-resolving-check is weak1-only). The 27
+  `tests/integration/test_targets.py` cases pass, including the break-a-rule
+  meta-check. Three bugs were found and fixed during this run: `group_members` read
+  account fields at the wrong nesting level (evidence has them under `data`); the
+  credential password regex used a leading `\b` that missed prefixed keys like
+  `db_password`; and the command-arg safe-value pattern now allows spaces (neutralised
+  by `shlex.quote`) so real paths with spaces are not rejected. Remaining follow-up:
+  the live Docker lab (TE-01/02/04 build, live EC-01/EC-13, real NV-02 docker diff,
+  NF-03 multi-version).
+
+## 0b. Earlier change: Hamzah's analysis push (17 November 2026)
 
 Read this first if you last worked on the repository before 17 November.
 
@@ -139,10 +241,19 @@ Working code:
 | `sable/report/vendor/` | Cytoscape.js 3.30.4 and MIT license |
 | `schemas/` | Versioned snapshot/results JSON Schemas, installed as package resources |
 
-Scaffolding, not implementations: `sable/collect/`, `sable/remediate/`. Their
-package files do not imply that SSH collection or apply/rollback works.
-`targets/` and `tests/integration/` currently contain guidance, not Docker targets
-or a working live integration harness.
+Implemented since this push: `sable/collect/` (allow-list, audit, authorise, ssh,
+certificate, collector and EC-03..EC-12 parsers), the four `targets/` (Dockerfile +
+authored snapshot + expected.yaml + compose) and `tests/integration/test_targets.py`
+(offline harness). See `docs/COLLECTION.md`. The authored target snapshots are
+stand-ins until the Docker lab is built and a live snapshot replaces each; the new
+tests pass (252 passed, 6 skipped on CPython 3.12.16).
+
+`sable/remediate/` is now implemented (script generation, gated chmod/chown apply,
+rollback, rescan compare) and the `scan`/`analyze`/`remediate`/`rollback` CLI
+commands are wired. What still needs a live environment, not more code: SSH scanning
+against running containers (live EC-01/EC-13), the real NV-02 docker-diff run, real
+chmod/chown apply + rollback on a throwaway target (RP-05/RM-01..03 execution) and
+"scan one target of each base image" (NF-03). These are gated on `make targets-up`.
 
 Other assets: pyproject.toml, Makefile, public YAML defaults, .gitignore, four
 synthetic snapshots, eight analysis/completed results generated from them by
@@ -483,24 +594,28 @@ no-writes safety, real detection accuracy, rollback correctness or distro suppor
 
 1. Coordinate the implemented contracts with Mishaal/Hamzah. Preserve the working
    planner/report API while adding real producers; avoid starting a second schema.
-2. Build collector connection/safety foundations and real lab targets. Get one
-   authentic redacted snapshot through validation before broadening checks.
+2. ~~Collector connection/safety foundations, parsers and lab target definitions~~
+   done (Mishaal, this push): `sable/collect/`, `targets/` and the offline harness.
+   Remaining: build/run the Docker lab, capture one authentic redacted snapshot per
+   target and confirm it is byte-identical to the authored stand-in (EC-13), then run
+   the live integration and NV-02 docker-diff checks.
 3. ~~KB loaders/rules and evidence-to-graph generation~~ done (17 Nov). Remaining:
    cross-check `cves.yaml` fixed versions against the Ubuntu/Debian trackers; extend
    rules when real snapshots show gaps (group-based permissions, SGID, other caps).
 4. ~~Shared path/goal scoring~~ done: one definition in graph/paths + score/goal.
 5. ~~VOI~~ done as `compute_voi`; Thomas's orchestration must call it after
    `finalize_results` and before rendering.
-6. Thomas: add `sable analyze --snapshot` (analyze -> finalize -> VOI -> report) and
-   later `scan` to connect the entire pipeline. Pass `scan.extra_entry_points` /
-   `asset_goals` from sable.yaml through to `analyze`. The application
-   should eventually accept SSH credentials and produce the report in one run.
-7. Implement genuine no-writes fingerprint/certificate checks, error/missing-data
-   behavior and source-side redaction/audit acceptance tests.
-8. Implement remediation scripts/state/apply/rollback separately, with explicit
-   gating and throwaway-target tests. Complete RP-05's real stat restoration check.
-9. Run all target expectations, supported Python/distro tests, acceptance checks,
-   review, security-analysis documentation and fresh-clone demo rehearsal.
+6. ~~Thomas: `sable analyze` / `scan` connecting the whole pipeline~~ done: the CLI
+   runs analyze -> finalize -> VOI -> report, `scan` calls the collector, and
+   `scan.extra_entry_points`/`asset_goals` flow from sable.yaml through to `analyze`.
+7. Genuine no-writes fingerprint/certificate: certificate logic + tests done
+   (NV-02); the real docker-diff/hash run against a live target remains (Docker).
+8. ~~Remediation scripts/state/apply/rollback with explicit gating and tests~~ done:
+   `sable/remediate/` + `remediate`/`rollback` commands, unit-tested with a fake
+   runner. Remaining: RP-05/RM-01..03 **execution** check on a throwaway target
+   (apply -> rescan -> rollback, stat identical) — needs the Docker lab.
+9. Run all target expectations live, scan one target of each base image (NF-03),
+   acceptance checks, peer review, security-analysis docs and fresh-clone demo.
 
 Follow the guide's Must/Should/Could priorities. Thomas's planner/report features
 include several Should/Could items already; this does not waive missing core Musts

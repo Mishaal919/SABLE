@@ -5,11 +5,14 @@ The intended workflow is to accept SSH credentials, collect evidence using
 read-only commands, build and score attack paths, plan reversible fixes, and
 produce a full HTML report plus a terminal summary.
 
-**Current progress:** offline analysis works from a snapshot file: the knowledge
-base turns collected evidence into an attack graph with scored paths, unknowns and
-candidate fixes; fix planning, value-of-information ranking and reporting run on
-top of it. Live SSH collection, the `analyze`/`scan` CLI commands and remote
-remediation are not implemented yet. This is not yet a complete scanner.
+**Current progress:** the full pipeline works end to end. `sable scan user@host`
+collects evidence read-only over SSH, the knowledge base builds a scored attack
+graph with unknowns and candidate fixes, planning/VOI/reporting run on top, and
+`remediate`/`rollback` generate and apply reversible chmod/chown fixes. This was
+verified **live** against the four Docker lab targets (`make targets-up`), including
+the NV-02 no-writes certificate and a full apply→rescan→rollback cycle. Outstanding
+items are minor: extra base-image variants (24.04/debian:12), the optional graph SVG,
+a CVE tracker cross-check, and team peer review.
 
 ## AI contributor handoff — temporary
 
@@ -43,6 +46,11 @@ or one contributor's work is complete.
 | Exports | Schema-validated results.json, summary.txt and a printed terminal summary showing top paths, top three fixes and scan mode |
 | Optional reporting | CIS tags and KB date where supplied; structural scan comparison showing added/removed paths and confidence changes |
 | Output protection | Shared redaction helper, HTML escaping, safe embedded JSON and a report policy blocking external network access |
+| Collection (Mishaal) | Read-only SSH collector: frozen command allow-list and single `exec_command` gateway, audit log, authorisation prompt, host-key-verified paramiko connection, EC-03..EC-12 evidence parsers, source-side credential redaction, deterministic schema-valid snapshots, unprivileged/elevated modes, timeouts and a `python -m sable.collect` runner |
+| Remediation (Thomas) | Fix/rollback script generation (chmod/chown only; sudo/service/capability/manual kept recommend-only), original-state recording to `state.json`, gated apply mode with per-change confirmation, rollback restoration and rescan-vs-prediction compare; operations are parsed and validated, never executed as raw command strings |
+| End-to-end CLI (Thomas) | `validate / analyze / scan / plan / report / remediate / rollback / compare`; `analyze` and `scan` run the full pipeline (collect →) analyze → finalize → VOI → report, with VOI now wired into the CLI |
+| No-writes certificate | NV-02 fingerprint/certificate logic: docker-diff and hash comparison, allow-listed expected changes, unexpected-write flagging (live diff pending Docker) |
+| Lab targets (Mishaal) | weak1/weak2/weak3/hardened with Dockerfile, authored snapshot and expected.yaml; docker-compose (ports 2221-2224) and `make targets-up/reset`; offline integration harness with a break-a-rule meta-check |
 | Development setup | Installable Python package, CLI, configuration defaults, four synthetic target datasets, tests, CI configuration and interface documentation |
 
 The analyzer generates attack edges only from catalogued rules and cites the
@@ -56,13 +64,13 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 
 | Area | Remaining work |
 |---|---|
-| Collection — Mishaal | SSH/password/key handling, host-key verification, read-only command allow-list, evidence checks, audit logs, authorization, timeouts and collector-side redaction |
-| Targets — Mishaal, shared tests | Actual weak1/weak2/weak3/hardened Docker targets, expected findings, setup/reset commands and live integration harness |
+| Collection — Mishaal | Implemented and **verified live**: `sable scan` over SSH produced the expected findings on all four Docker targets |
+| Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2226, incl. ubuntu 24.04 + debian:12 compat targets for NF-03); offline harness also passes |
 | Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
-| Remediation — Thomas | Fix/rollback script generation, original-state recording, gated apply mode, rollback and post-change verification |
-| Orchestration — Thomas, shared integration | `sable analyze --snapshot` and `scan` commands calling `analyze`, `finalize_results`, `compute_voi` and the reporter |
-| Final evaluation | Detection accuracy, complete target acceptance checks, real rollback checks, supported-platform testing, peer review and demo rehearsal |
+| Remediation — Thomas | Implemented and **verified live** on weak2: apply → rescan (path gone) → rollback → rescan (path back), stat identical |
+| Orchestration — Thomas | Implemented and verified live; VOI wired into the CLI |
+| Final evaluation | Live detection accuracy, target acceptance, apply/rollback and NV-02 all verified. Remaining: 24.04/debian:12 base images, peer review and a fresh-clone demo rehearsal |
 
 A rollback description is required today, but rollback execution is not implemented.
 The report displays supplied certificate/VOI data; it does not perform a filesystem
@@ -121,8 +129,48 @@ complete["voi"] = compute_voi(complete)
 write_report(complete, "output/weak2")
 ```
 
-`scan`, `analyze`, `remediate` and `rollback` commands are future work. Current commands
-return exit code 0 on success and 2 for handled input/configuration/I/O errors.
+Run the read-only collector against a host (writes a redacted, schema-valid snapshot):
+
+```sh
+# Bring up the Docker lab targets first (ports 2221-2224):
+make targets-up
+
+# Collect weak1 over SSH (auditor / auditorpass are lab-only):
+SABLE_PW=auditorpass python -m sable.collect auditor@localhost --port 2221 \
+  --password-env SABLE_PW --yes --output output/weak1.snapshot.json
+
+# Then analyse the snapshot from Python (see the example below) or validate it:
+sable validate snapshot output/weak1.snapshot.json
+```
+
+Analyse a snapshot straight to a report, or run a full SSH scan, with the CLI:
+
+```sh
+# Snapshot -> analyze -> finalize -> VOI -> report, no SSH:
+sable analyze tests/fixtures/snapshots/weak3.json --output output/weak3
+
+# Full scan over SSH (collect -> analyze -> report) in one command:
+SABLE_PW=auditorpass sable scan auditor@localhost --port 2221 \
+  --password-env SABLE_PW --yes --output output/weak1
+```
+
+Generate remediation scripts, or apply chmod/chown fixes on a host you control:
+
+```sh
+sable remediate output/weak3/results.json --output output/weak3   # writes fix.sh + rollback.sh
+sable remediate output/weak3/results.json --apply --state state.json   # gated apply (chmod/chown only)
+sable rollback state.json                                          # restore recorded owner/mode
+```
+
+Offline target acceptance runs without Docker:
+
+```sh
+make integration   # analyses each target's authored snapshot vs expected.yaml
+```
+
+All commands return exit code 0 on success and 2 for handled input/configuration/I/O
+errors. `remediate --apply` and `rollback` change files and run `chmod`/`chown`
+locally; use them only on a host you are authorised to change.
 
 Install `.[dev,app]` when implementing Paramiko SSH collection and NetworkX analysis.
 Jinja2, PyYAML, jsonschema and timestamp validation are already core dependencies.
@@ -150,6 +198,19 @@ Previously verified on **14 November 2026** (macOS, Python 3.14), before the ana
 
 These are local results, not a claim that GitHub CI or live target tests have run.
 CI is configured for Python 3.10 and 3.12; the latest local environment used Python 3.14.
+
+Verified offline with `python -m pytest -q` on **both CPython 3.10.22 and 3.12.16:
+275 passed, 6 skipped** (the skips are per-target conditional integration checks),
+satisfying NF-03's two-version requirement; a GitHub Actions workflow
+(`.github/workflows/ci.yml`) runs the same on 3.10 and 3.12.
+
+Verified **live** against the Docker lab (Docker 29.8.2): `sable scan` over real SSH
+produced the expected findings on all four targets, NV-02's `docker diff` certificate
+passed on hardened with no unexpected changes, and the full remediation cycle on weak2
+(generate `fix.sh` → apply → rescan shows the root path gone → `rollback.sh` → rescan
+shows it back, stat identical) worked end to end. The collector was also run against
+ubuntu 22.04, ubuntu 24.04 and debian:12 base images (NF-03). Remaining: the optional
+graph SVG, the CVE tracker cross-check, and team peer review.
 
 ```sh
 python -m pytest -q
@@ -206,6 +267,8 @@ scope change.
 - [Data contracts](docs/CONTRACTS.md): shared formats and handoff rules.
 - [Analysis](docs/ANALYSIS.md): KB, attack graph, scoring and VOI APIs and acceptance status.
 - [Planning and reporting](docs/PLANNING_AND_REPORTING.md): APIs, configuration and acceptance status.
+- [Collection](docs/COLLECTION.md): collector architecture, evidence contract and EC/CL/TE/NV-02 acceptance.
+- [Remediation](docs/REMEDIATION.md): fix scripts, gated apply/rollback and the end-to-end CLI.
 - [Decisions](docs/DECISIONS.md): scope and unresolved integration questions.
 
 Never commit SSH passwords, private keys, API tokens, real sensitive snapshots or

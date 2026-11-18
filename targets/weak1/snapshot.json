@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "host": "weak1.example.test",
+    "distro": "ubuntu 22.04",
+    "kernel": "5.15.0-generic",
+    "user": "auditor",
+    "groups": [
+      "auditor"
+    ],
+    "mode": "unprivileged",
+    "timestamp": "2026-11-17T00:00:00Z",
+    "sable_version": "0.1.0",
+    "architecture": "x86_64"
+  },
+  "evidence": [
+    {
+      "id": "ev-01",
+      "type": "credential_location",
+      "data": {
+        "path": "/var/www/config.php",
+        "line": 4,
+        "pattern_type": "password",
+        "readable_by": [
+          "auditor",
+          "dbadmin",
+          "root"
+        ]
+      },
+      "source_cmd": "credential_scan",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-02",
+      "type": "user_account",
+      "data": {
+        "name": "root",
+        "uid": 0,
+        "gid": 0,
+        "groups": [
+          "root"
+        ],
+        "home": "/root",
+        "shell": "/bin/bash"
+      },
+      "source_cmd": "user_accounts",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-03",
+      "type": "user_account",
+      "data": {
+        "name": "auditor",
+        "uid": 1000,
+        "gid": 1000,
+        "groups": [
+          "auditor"
+        ],
+        "home": "/home/auditor",
+        "shell": "/bin/bash"
+      },
+      "source_cmd": "user_accounts",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-04",
+      "type": "user_account",
+      "data": {
+        "name": "dbadmin",
+        "uid": 1001,
+        "gid": 1001,
+        "groups": [
+          "dbadmin"
+        ],
+        "home": "/home/dbadmin",
+        "shell": "/bin/bash"
+      },
+      "source_cmd": "user_accounts",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-05",
+      "type": "user_account",
+      "data": {
+        "name": "www-data",
+        "uid": 33,
+        "gid": 33,
+        "groups": [
+          "www-data"
+        ],
+        "home": "/var/www",
+        "shell": "/usr/sbin/nologin"
+      },
+      "source_cmd": "user_accounts",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-06",
+      "type": "ssh_setting",
+      "data": {
+        "name": "PermitRootLogin",
+        "value": "no",
+        "effective": true
+      },
+      "source_cmd": "ssh_settings",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-07",
+      "type": "service",
+      "data": {
+        "name": "sshd",
+        "package": "openssh-server",
+        "version": null,
+        "running": true,
+        "listeners": [
+          {
+            "address": "0.0.0.0",
+            "port": 22,
+            "protocol": "tcp"
+          }
+        ]
+      },
+      "source_cmd": "services",
+      "strength": "observed"
+    },
+    {
+      "id": "ev-08",
+      "type": "service",
+      "data": {
+        "name": "apache2",
+        "package": "apache2",
+        "version": null,
+        "running": true,
+        "listeners": [
+          {
+            "address": "0.0.0.0",
+            "port": 80,
+            "protocol": "tcp"
+          }
+        ]
+      },
+      "source_cmd": "services",
+      "strength": "observed"
+    }
+  ],
+  "missing": [
+    {
+      "check": "sudoers_full",
+      "reason": "permission_denied"
+    }
+  ],
+  "no_writes": {
+    "status": "not_run",
+    "method": "none",
+    "expected_changes": [],
+    "unexpected_changes": []
+  }
+}

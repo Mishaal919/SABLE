@@ -1,0 +1,12 @@
+# TE-02 acceptance for hardened: same base image, tight permissions, no extra SUID
+# in the escalation catalogue, no sudo for auditor, no writable cron scripts,
+# shadow not readable. SABLE must report zero paths to root and no High paths at all.
+# Default SUID binaries (mount, su) are present but are not escalation primitives in
+# the knowledge base, so they must not create any path.
+target: hardened
+scan_user: auditor
+extra_entry_points: []
+asset_goals: []
+expected_paths: []
+forbid_root_paths: true
+forbid_high_paths: true
