@@ -29,12 +29,30 @@ Read this first if you last worked on the repository before this push.
   lab). `.github/workflows/ci.yml` runs the suite on Python 3.10 and 3.12.
 - `.gitignore` adds `.venv*/`, `state.json`, `audit.log`.
 
-**Verified:** `python -m pytest -q` -> **269 passed, 6 skipped** on CPython 3.10.22
-**and** 3.12.16 (NF-03 multi-version). The installed-CLI test and offline target
-harness pass. Remediation apply/rollback are unit-tested via a fake runner; real
-chmod/chown execution, live SSH collection, the live NV-02 docker diff and
-"scan one target of each base image" still need the Docker lab up (Docker Desktop was
-not running here).
+**Verified (offline):** `python -m pytest -q` -> **275 passed, 6 skipped** on CPython
+3.10.22 **and** 3.12.16 (NF-03 multi-version). The installed-CLI test and offline
+target harness pass.
+
+**Verified (LIVE, 18 November 2026, Docker 29.8.2):** `make targets-up` built and ran
+all four targets on 2221-2224 (TE-04). `sable scan auditor@localhost --port ...` over
+real SSH produced the expected findings on every target: weak1 `config.php`
+credential + the `auditor -> cred -> dbadmin -> root` Low chain + `sudoers_full`
+unknown + a non-empty VOI; weak2 `www-data -> root` High (only with www-data entry,
+AG-02) and the chown fix; weak3 root (capability) and `asset:/etc/shadow` with the
+setcap + chmod fixes; hardened zero paths to root and zero High paths (TE-02). NV-02:
+`docker diff` of hardened after a scan is **passed** with no unexpected changes.
+RM-01/RP-05 full cycle on weak2: generated `fix.sh` made `/opt/backup.sh`
+`755 root:root`, a rescan showed **0 root paths**, `rollback.sh` restored
+`775 root:www-data` (stat identical) and a rescan showed the path **back**.
+
+The live run also fixed three real collector bugs the offline parser tests missed
+(dpkg `${Package}` brace escaping, `stat -c` not interpreting `\t` -> `--printf`,
+credential scan over-scoping) plus the NV-02 ancestor-directory handling and a
+fix.sh CRLF-newline bug; all have new guard tests.
+
+**Still outstanding (minor / team):** scanning a 24.04 and a debian:12 base image
+(NF-03 breadth; only ubuntu:22.04 targets exist), AG-07 optional SVG, the CVE
+version cross-check, and human peer review.
 
 **Capability policy unchanged:** capability fixes stay recommend-only (not scripted,
 not applied); only chmod/chown are applyable (RM-04). DECISIONS item 5 holds.

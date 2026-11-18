@@ -107,8 +107,14 @@ model an unknown escalation for interactive accounts (the weak1 chain).
 | NF-01 Non-destructive | guaranteed by EC-02, shown by NV-02 | ✅ (logic) |
 | NF-03 Compatibility | Python 3.10+ code; run suite on 3.10/3.12 | ⏳ CI |
 
-**⏳ Docker / CI** items need the running lab or a second interpreter and are the live
-follow-up; everything else is covered by the committed offline unit/integration tests.
+**⏳ Docker / CI** items were **verified live on 18 November 2026** (Docker 29.8.2):
+`make targets-up` ran all four targets; `sable scan` over SSH produced the expected
+findings on each (weak1 config.php + dbadmin→root chain + VOI; weak2 www-data→root;
+weak3 root + /etc/shadow; hardened zero paths); NV-02's `docker diff` of hardened
+passed with no unexpected changes; the suite runs on Python 3.10 and 3.12. The live
+run also fixed three collector bugs (dpkg brace escaping, `stat -c` vs `--printf`,
+credential over-scoping), now guarded by tests. Remaining: 24.04/debian:12 base
+images for NF-03 breadth.
 
 ## Running
 

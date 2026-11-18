@@ -42,6 +42,15 @@ so reports made this way carry the next-best-check ranking.
 | CL-02 | Flags + config | existing + scan/analyze `--config`/flags | ✅ |
 | NF-03 | Compatibility 3.10/3.12 | suite run on 3.10.22 and 3.12.16; CI matrix | ✅ · ⬜ scan each base image (Docker) |
 
+## Live verification (18 November 2026)
+
+The full RM-01/RP-05 cycle was run against the weak2 Docker target: `sable remediate`
+generated `fix.sh`/`rollback.sh`; running `fix.sh` in the container changed
+`/opt/backup.sh` from `775 root:www-data` to `755 root:root`; a rescan showed **0
+root paths**; running `rollback.sh` restored `775 root:www-data` (stat identical) and
+a rescan showed the escalation path **back**. This exposed and fixed a CRLF-newline
+bug in generated scripts (now LF-only, with a guard test).
+
 ## Safety notes
 
 - Only chmod/chown are applyable; capability stays recommend-only (DECISIONS item 5).

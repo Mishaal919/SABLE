@@ -139,6 +139,15 @@ def test_residual_matches():
     assert residual_matches(results, {'paths': [None] * (predicted + 1)})['match'] is False
 
 
+def test_write_scripts_uses_lf_newlines(tmp_path):
+    from sable.remediate import write_scripts
+    written = write_scripts(_results('weak3.json'), tmp_path)
+    for path in written.values():
+        raw = path.read_bytes()
+        assert b'\r\n' not in raw, 'shell scripts must use LF (CRLF breaks bash)'
+        assert raw.startswith(b'#!/usr/bin/env bash')
+
+
 def test_is_applyable_and_paths_of():
     chmod_fix = {'type': 'chmod', 'execution': 'script_and_apply', 'command': 'chmod 640 /etc/shadow'}
     sudo_fix = {'type': 'sudo', 'execution': 'recommend_only', 'command': 'visudo: ...'}

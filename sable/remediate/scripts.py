@@ -77,7 +77,9 @@ def write_scripts(results, output_dir):
     written = {}
     for name in ('fix.sh', 'rollback.sh'):
         path = output / name
-        path.write_text(scripts[name], encoding='utf-8')
+        # Force LF newlines: these are shell scripts, and CRLF breaks bash
+        # (`set -o pipefail\r` -> "invalid option name") on any host.
+        path.write_text(scripts[name], encoding='utf-8', newline='\n')
         try:
             path.chmod(0o755)
         except OSError:

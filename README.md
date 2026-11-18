@@ -5,14 +5,14 @@ The intended workflow is to accept SSH credentials, collect evidence using
 read-only commands, build and score attack paths, plan reversible fixes, and
 produce a full HTML report plus a terminal summary.
 
-**Current progress:** offline analysis works from a snapshot file: the knowledge
-base turns collected evidence into an attack graph with scored paths, unknowns and
-candidate fixes; fix planning, value-of-information ranking and reporting run on
-top of it. The read-only SSH collector, its command allow-list/audit log, the four
-Docker lab targets and an offline target-acceptance harness are now implemented
-(`python -m sable.collect`). Still outstanding: building/running the Docker lab for
-live scans, the `analyze`/`scan` CLI commands and remote remediation. This is not
-yet a fully wired end-to-end scanner.
+**Current progress:** the full pipeline works end to end. `sable scan user@host`
+collects evidence read-only over SSH, the knowledge base builds a scored attack
+graph with unknowns and candidate fixes, planning/VOI/reporting run on top, and
+`remediate`/`rollback` generate and apply reversible chmod/chown fixes. This was
+verified **live** against the four Docker lab targets (`make targets-up`), including
+the NV-02 no-writes certificate and a full apply→rescan→rollback cycle. Outstanding
+items are minor: extra base-image variants (24.04/debian:12), the optional graph SVG,
+a CVE tracker cross-check, and team peer review.
 
 ## AI contributor handoff — temporary
 
@@ -64,13 +64,13 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 
 | Area | Remaining work |
 |---|---|
-| Collection — Mishaal | ~~SSH/password/key handling, host-key verification, read-only command allow-list, evidence checks, audit logs, authorization, timeouts and collector-side redaction~~ implemented; remaining: live scan against running containers and byte-identical live-vs-snapshot confirmation (EC-13) |
-| Targets — Mishaal, shared tests | Target definitions, expected findings and the offline harness are implemented; remaining: build/run the Docker lab (`make targets-up`) and the live integration run |
+| Collection — Mishaal | Implemented and **verified live**: `sable scan` over SSH produced the expected findings on all four Docker targets |
+| Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2224); offline harness also passes. Remaining: 24.04/debian:12 base-image variants (NF-03 breadth) |
 | Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
-| Remediation — Thomas | ~~Fix/rollback script generation, original-state recording, gated apply, rollback~~ implemented (`sable/remediate/`, `remediate`/`rollback` commands); remaining: real apply/rollback execution check on a throwaway target (Docker) |
-| Orchestration — Thomas | ~~`sable analyze` and `scan` calling analyze, finalize_results, compute_voi and the reporter~~ implemented; VOI now wired into the CLI |
-| Final evaluation | Live detection accuracy, target acceptance, real rollback checks, scan one target of each base image, peer review and demo rehearsal (Docker lab) |
+| Remediation — Thomas | Implemented and **verified live** on weak2: apply → rescan (path gone) → rollback → rescan (path back), stat identical |
+| Orchestration — Thomas | Implemented and verified live; VOI wired into the CLI |
+| Final evaluation | Live detection accuracy, target acceptance, apply/rollback and NV-02 all verified. Remaining: 24.04/debian:12 base images, peer review and a fresh-clone demo rehearsal |
 
 A rollback description is required today, but rollback execution is not implemented.
 The report displays supplied certificate/VOI data; it does not perform a filesystem
@@ -199,15 +199,18 @@ Previously verified on **14 November 2026** (macOS, Python 3.14), before the ana
 These are local results, not a claim that GitHub CI or live target tests have run.
 CI is configured for Python 3.10 and 3.12; the latest local environment used Python 3.14.
 
-The collection, remediation and end-to-end CLI work was verified with
-`python -m pytest -q` on **both CPython 3.10.22 and 3.12.16: 269 passed, 6 skipped**
-(the skips are per-target conditional integration checks), satisfying NF-03's
-two-version requirement. This covers `tests/test_collect_*.py`, `tests/test_remediate.py`,
-`tests/test_cli_commands.py` and the offline target acceptance in `tests/integration/`.
-A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the same on 3.10 and 3.12.
-Remediation apply/rollback are unit-tested with a fake runner; the live Docker lab
-(`make targets-up`) — real SSH scan, NV-02 `docker diff`, and real apply/rollback on a
-throwaway target — remains the follow-up.
+Verified offline with `python -m pytest -q` on **both CPython 3.10.22 and 3.12.16:
+275 passed, 6 skipped** (the skips are per-target conditional integration checks),
+satisfying NF-03's two-version requirement; a GitHub Actions workflow
+(`.github/workflows/ci.yml`) runs the same on 3.10 and 3.12.
+
+Verified **live** against the Docker lab (Docker 29.8.2): `sable scan` over real SSH
+produced the expected findings on all four targets, NV-02's `docker diff` certificate
+passed on hardened with no unexpected changes, and the full remediation cycle on weak2
+(generate `fix.sh` → apply → rescan shows the root path gone → `rollback.sh` → rescan
+shows it back, stat identical) worked end to end. Remaining: scanning a 24.04 and a
+debian:12 base image (NF-03 breadth), the optional graph SVG and CVE tracker
+cross-check, and team peer review.
 
 ```sh
 python -m pytest -q
