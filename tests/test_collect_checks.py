@@ -183,6 +183,15 @@ def test_scan_text_ignores_placeholder():
     assert scan_text('password = <your-password>\n') == []
 
 
+def test_scan_text_ignores_comments_and_plain_words():
+    # nsswitch 'passwd: files systemd' and comment lines are not credentials.
+    assert scan_text('passwd:         files systemd\n') == []
+    assert scan_text('# default challengePassword = something\n') == []
+    assert scan_text('; password = ignored\n') == []
+    # A real quoted/structured secret is still detected.
+    assert scan_text('db_password = "S3cr3t-LAB-ONLY"\n') == [(1, 'password')]
+
+
 def test_credential_evidence_shape():
     ev = credential_evidence('/var/www/config.php', [(4, 'password')], ['auditor', 'auditor'])
     assert len(ev) == 1

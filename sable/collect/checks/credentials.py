@@ -22,20 +22,39 @@ _PATTERNS = [
 _PLACEHOLDER = re.compile(r'(?i)(changeme|example|your[_-]?password|<[^>]+>|\$\{[^}]+\}|xxxx+)')
 
 
+def _looks_secret(value):
+    """Reject assignments whose value is a plain word (e.g. nsswitch ``passwd: files``).
+
+    Keeps quoted values, and tokens that contain a digit or a non-alphanumeric
+    character - the shape of a real credential - while dropping dictionary words.
+    """
+    value = value.strip()
+    if not value or _PLACEHOLDER.search(value):
+        return False
+    if value[0] in ('"', "'"):
+        return True
+    token = value.split()[0] if value.split() else ''
+    if any(character.isdigit() for character in token):
+        return True
+    return bool(re.search(r'[^A-Za-z0-9]', token))
+
+
 def scan_text(text):
     """Return a sorted list of ``(line_number, pattern_type)`` for secrets found.
 
-    Never returns the secret value. Line numbers are 1-based.
+    Never returns the secret value. Line numbers are 1-based. Comment lines and
+    assignments whose value is an ordinary word are ignored to cut false positives.
     """
     found = []
     for index, line in enumerate(text.splitlines(), start=1):
+        stripped = line.lstrip()
+        if stripped.startswith(('#', ';', '//')):
+            continue
         for pattern_type, pattern in _PATTERNS:
             match = pattern.search(line)
             if not match:
                 continue
-            # Skip lines that only contain a placeholder after the assignment.
-            tail = line[match.start():]
-            if pattern_type in ('password', 'token') and _PLACEHOLDER.search(tail):
+            if pattern_type in ('password', 'token') and not _looks_secret(line[match.end() - 1:]):
                 break
             found.append((index, pattern_type))
             break

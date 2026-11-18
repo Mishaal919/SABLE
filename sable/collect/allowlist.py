@@ -33,15 +33,16 @@ _SAFE_VALUE = re.compile(r'^[A-Za-z0-9 _@%+=:,./~^-]+$')
 ALLOWLIST = {
     # --- identity and inventory -------------------------------------------------
     'system_identity': "cat /etc/os-release; echo '##SABLE##'; uname -r; echo '##SABLE##'; uname -m; echo '##SABLE##'; id",
-    'installed_packages': "dpkg-query -W -f='${Package}\\t${Version}\\t${Architecture}\\n'",
+    # Braces are doubled so str.format passes ${Package} through literally.
+    'installed_packages': "dpkg-query -W -f='${{Package}}\\t${{Version}}\\t${{Architecture}}\\n'",
     'user_accounts': 'getent passwd',
     'groups': 'getent group',
     # --- privilege-relevant filesystem state ------------------------------------
     'suid_find': "find / -xdev \\( -perm -4000 -o -perm -2000 \\) -type f -printf '%m\\t%u\\t%g\\t%p\\n' 2>/dev/null",
-    'sensitive_permissions': "stat -c '%a\\t%U\\t%G\\t%n' /etc/shadow /etc/gshadow /etc/passwd /etc/group /etc/sudoers /root 2>/dev/null",
+    'sensitive_permissions': "stat --printf='%a\\t%U\\t%G\\t%n\\n' /etc/shadow /etc/gshadow /etc/passwd /etc/group /etc/sudoers /root 2>/dev/null",
     'world_writable': "find / -xdev -type f -perm -0002 -not -path '/proc/*' -not -path '/sys/*' -not -path '/dev/*' -not -path '/tmp/*' -printf '%m\\t%u\\t%g\\t%p\\n' 2>/dev/null",
     'file_capabilities': 'getcap -r / 2>/dev/null',
-    'stat_paths': "stat -c '%a\\t%U\\t%G\\t%n' {paths} 2>/dev/null",
+    'stat_paths': "stat --printf='%a\\t%U\\t%G\\t%n\\n' {paths} 2>/dev/null",
     # --- sudo -------------------------------------------------------------------
     'sudo_rules': 'sudo -n -l 2>/dev/null',
     'sudoers_full': 'sudo -n cat /etc/sudoers 2>/dev/null',
@@ -51,7 +52,10 @@ ALLOWLIST = {
     'services': "ss -tulpnH 2>/dev/null; echo '##SABLE##'; systemctl list-units --type=service --state=running --no-legend --no-pager 2>/dev/null",
     'package_of_file': 'dpkg-query -S {path} 2>/dev/null',
     # --- credentials ------------------------------------------------------------
-    'credential_find': "find /var/www /etc /home /opt /srv -maxdepth 6 -type f \\( -name '*.conf' -o -name '*.cnf' -o -name '*.env' -o -name '*.ini' -o -name '*.yaml' -o -name '*.yml' -o -name '*.php' -o -name '*.json' \\) -size -1048576 2>/dev/null",
+    # Scope to application directories where app credentials live; a broad /etc scan
+    # floods on system config comments (openssl.cnf, nsswitch) with no real secrets.
+    # /etc is scanned only for .env-style application environment files.
+    'credential_find': "find /var/www /opt /srv /home -maxdepth 6 -type f \\( -name '*.php' -o -name '*.env' -o -name '.env' -o -name '*.conf' -o -name '*.cnf' -o -name '*.ini' -o -name '*.yaml' -o -name '*.yml' -o -name '*.json' -o -name '*.properties' \\) -size -1048576 2>/dev/null; find /etc -maxdepth 2 -type f \\( -name '*.env' -o -name '.env' \\) -size -1048576 2>/dev/null",
     'read_file': 'head -c 1048576 {path} 2>/dev/null',
     # --- accounts and ssh -------------------------------------------------------
     'ssh_effective_config': 'sshd -T 2>/dev/null',

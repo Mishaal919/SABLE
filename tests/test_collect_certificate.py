@@ -66,3 +66,26 @@ def test_hash_fingerprint_clean_run_passes():
 
 def test_unknown_method_is_not_run():
     assert certificate_from_changes(['/x'], 'none')['status'] == 'not_run'
+
+
+def test_real_login_session_diff_passes():
+    # The shape a real SSH + sudo -n session produces (parent dirs, motd, sudo ts).
+    diff = ('C /home\nC /home/auditor\nA /home/auditor/.cache\n'
+            'A /home/auditor/.cache/motd.legal-displayed\n'
+            'C /run\nA /run/sshd.pid\nA /run/motd.dynamic\n'
+            'A /run/sudo\nA /run/sudo/ts\nA /run/sudo/ts/auditor\n'
+            'C /var\nC /var/log\nC /var/log/wtmp\n')
+    cert = certificate_from_docker_diff(diff)
+    assert cert['status'] == 'passed', cert['unexpected_changes']
+    assert cert['unexpected_changes'] == []
+
+
+def test_planted_write_among_login_noise_is_flagged():
+    diff = ('C /run\nA /run/sshd.pid\nC /home/auditor\n'
+            'A /home/auditor/.cache/motd.legal-displayed\n'
+            'A /opt/backdoor\nC /etc/passwd\n')
+    cert = certificate_from_docker_diff(diff)
+    assert cert['status'] == 'failed'
+    assert '/opt/backdoor' in cert['unexpected_changes']
+    assert '/etc/passwd' in cert['unexpected_changes']
+    assert '/run' not in cert['unexpected_changes']  # ancestor directory

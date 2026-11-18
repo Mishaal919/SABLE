@@ -1,6 +1,7 @@
 """EC-02 / CL-03: allow-list gateway and audit log."""
 import pathlib
 import socket
+import string
 
 import pytest
 
@@ -96,6 +97,23 @@ def test_every_audit_line_matches_an_allowlist_entry():
     for line in audit.lines:
         logged = line.split('command_id=')[1].split('\t')[0]
         assert logged in ALLOWLIST
+
+
+def test_every_command_renders():
+    """Every allow-list command renders without a missing/extra-field error.
+
+    Guards against literal braces (e.g. dpkg ${Package}) being misread as format
+    fields. Commands with placeholders get sample arguments.
+    """
+    sample = {'paths': ['/etc/shadow'], 'path': '/etc/passwd'}
+    for command_id in ALLOWLIST:
+        needed = {n for _, n, _, _ in string.Formatter().parse(ALLOWLIST[command_id]) if n}
+        render(command_id, {k: sample[k] for k in needed})
+
+
+def test_installed_packages_keeps_dpkg_fields():
+    command = render('installed_packages')
+    assert '${Package}' in command and '${Version}' in command and '${Architecture}' in command
 
 
 def test_canonical_sources_are_stable_ids():

@@ -6,15 +6,28 @@ unexpected. A certificate only ``passed`` when a real method ran and nothing
 unexpected changed; otherwise it is ``failed`` or, when no fingerprint was taken,
 ``not_run`` (the honest default the collector writes today).
 """
-# Login/audit records that an ordinary SSH session legitimately updates.
+# Login/audit records and runtime artifacts an ordinary SSH session (with a
+# read-only sudo -n probe) legitimately creates or updates. A scan touching only
+# these is non-destructive; anything else is flagged.
 EXPECTED_CHANGES = (
     '/var/log/auth.log',
     '/var/log/wtmp',
     '/var/log/lastlog',
     '/var/log/btmp',
-    '/run/utmp',
     '/var/log/journal',
+    '/var/log/secure',
+    '/run/utmp',
+    '/run/motd.dynamic',
+    '/run/sshd.pid',
+    '/run/sshd',
+    '/run/sudo',
+    '/run/lock',
 )
+
+
+def _is_login_cache(path):
+    # PAM/motd writes a per-user "legal displayed" marker under ~/.cache on login.
+    return '/.cache' in path and ('motd' in path or path.rstrip('/').endswith('.cache'))
 
 
 def not_run():
@@ -23,8 +36,10 @@ def not_run():
 
 
 def _is_expected(path):
-    # Matches the exact file, a rotated variant (auth.log.1) or a file under an
-    # allow-listed directory (the systemd journal).
+    # Matches the exact file, a rotated variant (auth.log.1), a file under an
+    # allow-listed directory (the systemd journal, /run/sudo), or a login cache file.
+    if _is_login_cache(path):
+        return True
     return any(path == allowed or path.startswith(allowed + '/') or path.startswith(allowed + '.')
                for allowed in EXPECTED_CHANGES)
 
@@ -37,9 +52,17 @@ def certificate_from_changes(changed_paths, method):
     """
     if method not in ('docker_diff', 'filesystem_hash'):
         return not_run()
+    paths = list(changed_paths)
+
+    def _is_ancestor_dir(path):
+        # docker diff lists a parent directory ('C /run') whenever a child changes;
+        # that is directory metadata, not a write, so it inherits the child's verdict.
+        prefix = path.rstrip('/') + '/'
+        return any(other != path and other.startswith(prefix) for other in paths)
+
     expected, unexpected = [], []
-    for path in changed_paths:
-        (expected if _is_expected(path) else unexpected).append(path)
+    for path in paths:
+        (expected if _is_expected(path) or _is_ancestor_dir(path) else unexpected).append(path)
     expected = sorted(set(expected))
     unexpected = sorted(set(unexpected))
     status = 'passed' if not unexpected else 'failed'
