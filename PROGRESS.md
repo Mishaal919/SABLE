@@ -50,9 +50,14 @@ The live run also fixed three real collector bugs the offline parser tests misse
 credential scan over-scoping) plus the NV-02 ancestor-directory handling and a
 fix.sh CRLF-newline bug; all have new guard tests.
 
-**Still outstanding (minor / team):** scanning a 24.04 and a debian:12 base image
-(NF-03 breadth; only ubuntu:22.04 targets exist), AG-07 optional SVG, the CVE
-version cross-check, and human peer review.
+NF-03 base-image breadth is now also done live: `compat-ubuntu2404` (ubuntu 24.04)
+and `compat-debian12` (debian:12) targets (ports 2225/2226) scan correctly - the
+collector parses each distro and detects the planted world-readable `/etc/shadow`.
+
+**Still outstanding (optional / team):** AG-07 optional graph SVG (Should; the
+Cytoscape view covers it), the CVE fixed-version cross-check against official
+trackers, and the guide's human peer review of each member's PR. The handoff section
+in README stays until peer review is done.
 
 **Capability policy unchanged:** capability fixes stay recommend-only (not scripted,
 not applied); only chmod/chown are applyable (RM-04). DECISIONS item 5 holds.

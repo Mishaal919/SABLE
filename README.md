@@ -65,7 +65,7 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 | Area | Remaining work |
 |---|---|
 | Collection — Mishaal | Implemented and **verified live**: `sable scan` over SSH produced the expected findings on all four Docker targets |
-| Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2224); offline harness also passes. Remaining: 24.04/debian:12 base-image variants (NF-03 breadth) |
+| Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2226, incl. ubuntu 24.04 + debian:12 compat targets for NF-03); offline harness also passes |
 | Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
 | Remediation — Thomas | Implemented and **verified live** on weak2: apply → rescan (path gone) → rollback → rescan (path back), stat identical |
@@ -208,9 +208,9 @@ Verified **live** against the Docker lab (Docker 29.8.2): `sable scan` over real
 produced the expected findings on all four targets, NV-02's `docker diff` certificate
 passed on hardened with no unexpected changes, and the full remediation cycle on weak2
 (generate `fix.sh` → apply → rescan shows the root path gone → `rollback.sh` → rescan
-shows it back, stat identical) worked end to end. Remaining: scanning a 24.04 and a
-debian:12 base image (NF-03 breadth), the optional graph SVG and CVE tracker
-cross-check, and team peer review.
+shows it back, stat identical) worked end to end. The collector was also run against
+ubuntu 22.04, ubuntu 24.04 and debian:12 base images (NF-03). Remaining: the optional
+graph SVG, the CVE tracker cross-check, and team peer review.
 
 ```sh
 python -m pytest -q

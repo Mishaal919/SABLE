@@ -26,3 +26,20 @@ services:
     container_name: sable-hardened
     ports:
       - "2224:22"
+  # NF-03 base-image compatibility: same collector, different distros.
+  compat-ubuntu2404:
+    build:
+      context: ./compat
+      args:
+        BASE: "ubuntu:24.04"
+    container_name: sable-compat-2404
+    ports:
+      - "2225:22"
+  compat-debian12:
+    build:
+      context: ./compat
+      args:
+        BASE: "debian:12"
+    container_name: sable-compat-deb12
+    ports:
+      - "2226:22"

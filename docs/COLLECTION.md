@@ -113,8 +113,9 @@ findings on each (weak1 config.php + dbadminâ†’root chain + VOI; weak2 www-dataâ
 weak3 root + /etc/shadow; hardened zero paths); NV-02's `docker diff` of hardened
 passed with no unexpected changes; the suite runs on Python 3.10 and 3.12. The live
 run also fixed three collector bugs (dpkg brace escaping, `stat -c` vs `--printf`,
-credential over-scoping), now guarded by tests. Remaining: 24.04/debian:12 base
-images for NF-03 breadth.
+credential over-scoping), now guarded by tests. NF-03 base-image breadth is covered
+by the `compat-ubuntu2404` and `compat-debian12` targets (ports 2225/2226): the
+collector scans ubuntu 22.04, ubuntu 24.04 and debian 12 correctly.
 
 ## Running
 
