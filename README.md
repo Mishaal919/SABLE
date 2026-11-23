@@ -5,14 +5,13 @@ The intended workflow is to accept SSH credentials, collect evidence using
 read-only commands, build and score attack paths, plan reversible fixes, and
 produce a full HTML report plus a terminal summary.
 
-**Current progress:** the full pipeline works end to end. `sable scan user@host`
-collects evidence read-only over SSH, the knowledge base builds a scored attack
-graph with unknowns and candidate fixes, planning/VOI/reporting run on top, and
-`remediate`/`rollback` generate and apply reversible chmod/chown fixes. This was
-verified **live** against the four Docker lab targets (`make targets-up`), including
-the NV-02 no-writes certificate and a full apply→rescan→rollback cycle. Outstanding
-items are minor: extra base-image variants (24.04/debian:12), the optional graph SVG,
-a CVE tracker cross-check, and team peer review.
+**Current progress (24 November 2026):** SSH collection, graph analysis, fix
+planning and HTML/terminal reporting are connected. Thomas's remediation now
+includes protected recovery journals, safe script generation and an optional local
+Linux rescan that compares observed paths with the fixes actually applied.
+Collection coverage, live no-writes fingerprint wiring, CVE verification and final
+Linux/distro acceptance checks still need work. Historical Docker results are in
+PROGRESS.md; the latest changes have not been rerun in Docker on this machine.
 
 ## AI contributor handoff — temporary
 
@@ -64,17 +63,17 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 
 | Area | Remaining work |
 |---|---|
-| Collection — Mishaal | Implemented and **verified live**: `sable scan` over SSH produced the expected findings on all four Docker targets |
-| Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2226, incl. ubuntu 24.04 + debian:12 compat targets for NF-03); offline harness also passes |
-| Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
-| Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
-| Remediation — Thomas | Implemented and **verified live** on weak2: apply → rescan (path gone) → rollback → rescan (path back), stat identical |
-| Orchestration — Thomas | Implemented and verified live; VOI wired into the CLI |
-| Final evaluation | Live detection accuracy, target acceptance, apply/rollback and NV-02 all verified. Remaining: 24.04/debian:12 base images, peer review and a fresh-clone demo rehearsal |
+| Collection — Mishaal | Permission-denied/nonzero command handling, service/timer/SSH-key coverage, authentic redacted snapshots |
+| Targets — Mishaal, shared tests | Reproduce live acceptance on the lab and supported distro variants |
+| Analysis — Hamzah | Optional AG-07 graph SVG; cross-check CVE versions against official trackers |
+| Safety verification — Mishaal | Wire before/after filesystem fingerprints into live collection certificates |
+| Remediation — Thomas | New automatic local rescan implemented and tested with mocked collection; live Linux acceptance still required |
+| Orchestration — Thomas | Implemented, including VOI, config overrides and post-apply report/comparison |
+| Final evaluation — team | Peer review, live acceptance evidence and fresh-clone demo |
 
-A rollback description is required today, but rollback execution is not implemented.
-The report displays supplied certificate/VOI data; it does not perform a filesystem
-audit. VOI is calculated by `sable.score.voi.compute_voi` but not yet called by the CLI. Synthetic fixtures are not evidence of live detection accuracy.
+Rollback execution is implemented. Reports display supplied certificate data;
+collection does not yet automatically establish a passing no-writes certificate.
+Synthetic fixtures and mocked scans are not evidence of live detection accuracy.
 
 ## Install and run
 
@@ -158,7 +157,9 @@ Generate remediation scripts, or apply chmod/chown fixes on a host you control:
 
 ```sh
 sable remediate output/weak3/results.json --output output/weak3   # writes fix.sh + rollback.sh
-sable remediate output/weak3/results.json --apply --state state.json   # gated apply (chmod/chown only)
+sable remediate output/weak3/results.json --apply --state state.json   # gated local apply
+# On the assessed Linux host, with a fresh state filename for this run:
+sable remediate output/weak3/results.json --apply --rescan --state state-new.json --output output/verified
 sable rollback state.json                                          # restore recorded owner/mode
 ```
 
@@ -174,10 +175,24 @@ locally; use them only on a host you are authorised to change.
 
 Install `.[dev,app]` when implementing Paramiko SSH collection and NetworkX analysis.
 Jinja2, PyYAML, jsonschema and timestamp validation are already core dependencies.
-The SSH defaults in `config/sable.yaml` are reserved for future collection; current
-`plan`/`report` commands accept the scoring/planner configuration, not SSH credentials.
+Commands with `--config` load `sable.yaml` from the working directory when present,
+or the explicitly named YAML file. CLI flags override YAML, including
+`--no-elevated` and `--no-accept-new-host-key` for scan. `config/sable.yaml` is a
+sample, not an automatically loaded file.
+
+`remediate --apply --rescan` collects locally as the original scan account and writes
+`rescan/report.html`, `results.json`, `summary.txt`, `snapshot.json`, `audit.log`
+and `comparison.json` beneath `--output`. It does not connect back over SSH.
+Pass the original analysis configuration to preserve custom scoring and entry points.
+Each apply run needs a new `--state` filename; recovery data is never overwritten.
+See [remediation details](docs/REMEDIATION.md).
 
 ## Verification status
+
+Latest local run (24 November 2026, Python 3.14): **294 passed, 6 skipped**.
+This includes real temporary-file recovery and mocked post-apply rescan integration.
+The installed package was refreshed. Older verification records follow; Docker was
+not available for a new live run.
 
 Last verified locally on **17 November 2026** (Windows 11, Python 3.13):
 

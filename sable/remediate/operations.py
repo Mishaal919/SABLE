@@ -1,28 +1,21 @@
-"""Parse a fix's display command into safe, structured chmod/chown operations.
-
-CONTRACTS: fix ``command`` strings are display/template material, never executed as
-shell. Remediation reconstructs the intended operation here and validates every
-argument, so only ``chmod <mode> <path>`` and ``chown <owner>[:<group>] <path>`` can
-ever run. Anything else (sudo, service, capability, manual) raises UnsafeFix.
-"""
+"""Parse display commands into validated operations; never execute source strings."""
+import posixpath
 import re
+import shlex
 
 from sable.remediate.errors import UnsafeFix
 
-_MODE = re.compile(r'^[0-7]{3,4}$')
-_OWNER = re.compile(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*(?::[A-Za-z0-9_][A-Za-z0-9_.-]*)?$')
-_PATH = re.compile(r'^/[^\s&|;`$()<>"\'\\]+$')
+_MODE = re.compile(r'[0-7]{3,4}')
+_OWNER = re.compile(r'[A-Za-z0-9_][A-Za-z0-9_.-]*(?::[A-Za-z0-9_][A-Za-z0-9_.-]*)?')
+# A deliberately small filename grammar shared by scripts, apply and rollback.
+_PATH = re.compile(r'/[A-Za-z0-9_./ @%+=,:~-]+')
 
 
 class Operation:
-    """One validated filesystem operation: ('chmod', mode, path) / ('chown', spec, path)."""
-
     __slots__ = ('verb', 'argument', 'path')
 
     def __init__(self, verb, argument, path):
-        self.verb = verb
-        self.argument = argument
-        self.path = path
+        self.verb, self.argument, self.path = verb, argument, path
 
     def __eq__(self, other):
         return isinstance(other, Operation) and (self.verb, self.argument, self.path) == (other.verb, other.argument, other.path)
@@ -31,38 +24,51 @@ class Operation:
         return f'Operation({self.verb!r}, {self.argument!r}, {self.path!r})'
 
 
-def parse_operations(command):
-    """Return the list of safe operations a fix command performs.
+def validate_operation(verb, argument, path):
+    if verb not in ('chmod', 'chown'):
+        raise UnsafeFix('Only chmod/chown operations are supported')
+    pattern = _MODE if verb == 'chmod' else _OWNER
+    if not isinstance(argument, str) or not pattern.fullmatch(argument):
+        raise UnsafeFix('Invalid operation argument')
+    if (not isinstance(path, str) or not _PATH.fullmatch(path)
+            or posixpath.normpath(path) != path or path == '/' or path.startswith('//')):
+        raise UnsafeFix('Invalid, non-canonical or unsafe path')
+    return Operation(verb, argument, path)
 
-    Raises UnsafeFix if any segment is not a well-formed chmod/chown on an absolute
-    path. The command may chain operations with ``&&`` (e.g. chown then chmod).
-    """
+
+def parse_operations(command):
+    if not isinstance(command, str) or any(c in command for c in '\n\r\0'):
+        raise UnsafeFix('Commands must be single-line strings')
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars='&|;')
+        lexer.whitespace_split = True
+        lexer.commenters = ''
+        tokens = list(lexer)
+    except ValueError as exc:
+        raise UnsafeFix('Malformed command quoting') from exc
+    segments, current = [], []
+    for token in tokens:
+        if token == '&&':
+            if not current:
+                raise UnsafeFix('Empty operation in command')
+            segments.append(current)
+            current = []
+        else:
+            current.append(token)
+    if not current:
+        raise UnsafeFix('Empty operation in command')
+    segments.append(current)
     operations = []
-    for segment in command.split('&&'):
-        tokens = segment.split()
-        if not tokens:
-            continue
-        verb = tokens[0]
-        if verb not in ('chmod', 'chown') or len(tokens) != 3:
-            raise UnsafeFix(f'not an applyable chmod/chown operation: {segment.strip()!r}')
-        argument, path = tokens[1], tokens[2]
-        if verb == 'chmod' and not _MODE.match(argument):
-            raise UnsafeFix(f'invalid mode: {argument!r}')
-        if verb == 'chown' and not _OWNER.match(argument):
-            raise UnsafeFix(f'invalid owner spec: {argument!r}')
-        if not _PATH.match(path):
-            raise UnsafeFix(f'invalid or unsafe path: {path!r}')
-        operations.append(Operation(verb, argument, path))
-    if not operations:
-        raise UnsafeFix('no operation found in fix command')
+    for segment in segments:
+        if len(segment) != 3:
+            raise UnsafeFix('Expected chmod/chown, argument and absolute path')
+        operations.append(validate_operation(*segment))
     return operations
 
 
 def is_applyable(fix):
-    """True only for chmod/chown fixes the planner marked script_and_apply (RM-04)."""
     return fix.get('execution') == 'script_and_apply' and fix.get('type') in ('chmod', 'chown')
 
 
 def paths_of(fix):
-    """The absolute paths a fix touches, parsed from its command."""
     return sorted({op.path for op in parse_operations(fix['command'])})
