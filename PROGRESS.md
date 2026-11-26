@@ -1,6 +1,6 @@
 # SABLE development handoff for AI contributors
 
-Last updated: **18 November 2026** (Asia/Karachi), after remediation + end-to-end CLI.
+Last updated: **24 November 2026** (Asia/Karachi), after Thomas’s remediation completion pass.
 
 Read this entire file before planning changes. Then follow the reading order below
 and inspect the actual code you will change. This is a maintained handoff, not proof
@@ -8,7 +8,57 @@ that the repository cannot have changed since the last update. Reconcile discrep
 with current code and the user's instructions; do not silently discard their decisions.
 Update this file and README.md after material implementation or status changes.
 
-## 0. Latest change: remediation + end-to-end CLI (18 November 2026)
+## Current status: Thomas’s remaining implementation (24 November 2026)
+
+This section supersedes older status claims below. The 18 November live results
+are historical records, not evidence that the current changes passed live tests.
+
+The developer guide assigns Thomas RP-01..06, RM-01..05, RE-01..07, CL-01/02,
+NV-03 and NV-04. Planning, reports, interactive graph and robust planning already
+exist; this pass closes the missing RM-05 orchestration and strengthens RM-01..04
+and CL-02. Do not rebuild the graph generator or substitute the Gemini feature list.
+
+- `operations.py` validates complete commands with shlex, rejects shell syntax,
+  wildcard paths and noncanonical paths, and allows quoted spaces. Scripts render
+  validated operations with shlex.join. Every line of descriptions/manual commands
+  is commented. Each unique original is recorded before any mutation.
+- `state.py` exclusively creates a mode-0600 recovery journal, then atomically
+  replaces it after fsync. `apply.py` confirms fixes before recording their paths,
+  records started fixes before executing them, and preserves partial failure state.
+  Never reuse an existing state file or add raw shell execution to this path.
+- `rollback.py` validates all records before writes, restores started fixes, and
+  uses chown before chmod (chown can clear special mode bits). Legacy originals-only
+  journals remain supported. `LocalRunner` uses numeric IDs and rejects symlinks
+  and special files. These operations assume trusted, stable parent directories;
+  they do not provide transactional protection against concurrent filesystem changes.
+- `verification.py` implements RM-05. Preflight requires Linux and the original
+  account locally; root uses runuser to collect as that account. Collection reuses
+  the fixed read-only command registry, parsers, analyzer and report pipeline.
+  Predict residuals from actually applied fixes only. Compare structural paths and
+  confidence changes as well as counts; a matching count alone is insufficient.
+  The report and comparison go in output/rescan, preserving the original report.
+  The source analysis config must be passed again for nondefault scoring or entries
+  absent from the original paths; results do not serialize every original setting.
+- CL-02 loads optional working-directory sable.yaml, explicit --config wins, and
+  BooleanOptionalAction lets false CLI flags override true YAML values.
+
+Latest verification: **294 passed, 6 skipped** on Python 3.14; regular package
+installation refreshed and installed CLI exercised by the suite.
+
+Tests cover hostile command/comment input, shared-path records, refusal to overwrite
+state, partial failure recovery, real temporary-file apply/rollback with identical
+mode/uid/gid, original-account collection, and CLI rescan report/comparison output.
+The full pipeline test mocks collection; it is not a live Linux rescan test.
+Docker is unavailable in this environment. Re-run the new --apply --rescan flow on
+an authorized throwaway Linux target, then rollback and compare metadata/path results.
+
+Still assigned elsewhere: Mishaal’s collector needs nonzero/permission-denied checks,
+service/timer/SSH-key coverage and live no-writes fingerprint integration; Hamzah
+owns CVE version verification and optional graph SVG export. Team acceptance needs
+fresh authentic target snapshots, distro variants, peer review and a fresh-clone demo.
+Keep the temporary README AI handoff section until the entire project is complete.
+
+## Historical update: remediation + end-to-end CLI (18 November 2026)
 
 Read this first if you last worked on the repository before this push.
 
@@ -167,7 +217,7 @@ Read this first if you last worked on the repository before 17 November.
   results still stop at the credential and Thomas's "no dbadmin" test holds.
 - Default goals: root, every reachable asset/credential node, configured asset_goals.
 - `voi_bonus` default 0.1. VOI uses `plan_fixes` (with exact disabled for speed).
-- `sable analyze` and VOI wiring into the CLI are **left to Thomas**.
+- `sable analyze` and VOI wiring were left to Thomas at this historical point; both are now implemented.
 
 ## 1. User intent and confirmed scope
 
@@ -279,7 +329,7 @@ create conflicting probability definitions.
 |---|---|---|
 | Mishaal | SSH collection, read-only safety, audit logs, targets and integration harness | Validated redacted snapshot, missing checks, certificate data |
 | Hamzah | KB catalogues/rules, evidence-to-graph generation, scoring, VOI | Analysis results, concrete candidate fixes/templates, represented unknowns |
-| Thomas | Fix planning, remediation, HTML/terminal reports, CLI orchestration | Completed results and report files; future separately gated remediation |
+| Thomas | Fix planning, remediation, HTML/terminal reports, CLI orchestration | Completed results, reports and separately gated remediation with optional local rescan |
 | Shared | Schemas, redaction integration, fixtures, acceptance tests and review | Producer/consumer agreement |
 
 Target flow:
@@ -611,7 +661,7 @@ no-writes safety, real detection accuracy, rollback correctness or distro suppor
    cross-check `cves.yaml` fixed versions against the Ubuntu/Debian trackers; extend
    rules when real snapshots show gaps (group-based permissions, SGID, other caps).
 4. ~~Shared path/goal scoring~~ done: one definition in graph/paths + score/goal.
-5. ~~VOI~~ done as `compute_voi`; Thomas's orchestration must call it after
+5. ~~VOI~~ done as `compute_voi`; CLI orchestration calls it after
    `finalize_results` and before rendering.
 6. ~~Thomas: `sable analyze` / `scan` connecting the whole pipeline~~ done: the CLI
    runs analyze -> finalize -> VOI -> report, `scan` calls the collector, and

@@ -9,3 +9,10 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
+
+# Preserved local exclusions
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store

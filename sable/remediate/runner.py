@@ -1,34 +1,29 @@
-"""Filesystem runners for the gated apply/rollback boundary.
-
-A runner exposes ``stat(path)`` and the two mutating operations ``chmod``/``chown``.
-``LocalRunner`` uses subprocess with argument lists (never a shell) on the machine
-SABLE runs on; tests use an in-memory fake. A remote runner over SSH would implement
-the same three methods with a *write* allow-list, kept entirely separate from the
-read-only collector.
-"""
+"""Local chmod/chown runner. Remote writes never use the collector's SSH channel."""
+import os
+import stat
 import subprocess
-
 from sable.remediate.errors import RemediationError
+from sable.remediate.operations import validate_operation
 
 
 class LocalRunner:
-    """Runs chmod/chown/stat locally via argument lists (no shell)."""
-
     def stat(self, path):
         try:
-            out = subprocess.run(['stat', '-c', '%a\t%U\t%G', path],
-                                 capture_output=True, text=True, check=True, timeout=30).stdout.strip()
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise RemediationError(f'cannot stat {path}') from exc
-        parts = out.split('\t')
-        if len(parts) != 3:
-            raise RemediationError(f'unexpected stat output for {path}')
-        return parts[0], parts[1], parts[2]
+            info = os.lstat(path)
+            if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
+                raise RemediationError('Only regular files and directories can be remediated')
+            return format(stat.S_IMODE(info.st_mode), '03o'), str(info.st_uid), str(info.st_gid)
+        except OSError as exc:
+            raise RemediationError('Cannot read target file metadata') from exc
 
     def chmod(self, mode, path):
+        validate_operation('chmod', mode, path)
+        self.stat(path)
         self._run(['chmod', mode, path])
 
     def chown(self, spec, path):
+        validate_operation('chown', spec, path)
+        self.stat(path)
         self._run(['chown', spec, path])
 
     @staticmethod
@@ -36,4 +31,4 @@ class LocalRunner:
         try:
             subprocess.run(argv, check=True, capture_output=True, text=True, timeout=30)
         except (OSError, subprocess.SubprocessError) as exc:
-            raise RemediationError(f'command failed: {" ".join(argv)}') from exc
+            raise RemediationError('Filesystem operation failed; recovery state has been retained') from exc

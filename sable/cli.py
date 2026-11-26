@@ -17,7 +17,9 @@ from sable.contracts.validation import ContractError, dumps, validate
 
 def _load_config(path):
     if not path:
-        return {}
+        path = Path('sable.yaml')
+        if not path.is_file():
+            return {}
     config = yaml.safe_load(Path(path).read_text(encoding='utf-8'))
     if config is None:
         return {}
@@ -62,6 +64,7 @@ def _full_pipeline(snapshot, config, output, secrets):
     complete = finalize_results(analysis, config)
     complete['voi'] = compute_voi(complete, config)
     _report_complete(complete, output, secrets)
+    return complete
 
 
 def _handle_analyze(args):
@@ -91,12 +94,12 @@ def _handle_scan(args):
             secrets.append(password)
     snapshot = collect_snapshot(
         host, user,
-        port=args.port or ssh_config.get('port', 22),
+        port=args.port if args.port is not None else ssh_config.get('port', 22),
         key_path=str(args.key) if args.key else None,
         password=password,
-        accept_new_host_key=args.accept_new_host_key or bool(ssh_config.get('accept_new_host_key')),
+        accept_new_host_key=args.accept_new_host_key if args.accept_new_host_key is not None else bool(ssh_config.get('accept_new_host_key')),
         timeout=ssh_config.get('command_timeout_seconds', 30),
-        config={**config.get('scan', {}), 'elevated': args.elevated or bool(config.get('scan', {}).get('elevated'))},
+        config={**config.get('scan', {}), 'elevated': args.elevated if args.elevated is not None else bool(config.get('scan', {}).get('elevated'))},
         audit_path=args.audit_log, assume_yes=args.yes, secrets=tuple(secrets),
     )
     _full_pipeline(snapshot, config, args.output, tuple(secrets))
@@ -104,18 +107,36 @@ def _handle_scan(args):
 
 
 def _handle_remediate(args):
-    from sable.remediate import apply_fixes, write_scripts, LocalRunner, residual_matches
+    from sable.remediate import apply_fixes, write_scripts, LocalRunner
+    from sable.remediate.verification import preflight, verification_config, collect_after_apply, compare_after_apply
+    from sable.redaction import redact
+    if args.rescan and not args.apply:
+        raise ContractError("--rescan requires --apply on the assessed Linux host")
     results = json.loads(args.file.read_text(encoding='utf-8'))
     validate(results, 'results')
     if results.get('stage') != 'complete':
         raise ContractError('remediate requires completed (stage=complete) results; run analyze or plan first')
-    written = write_scripts(results, args.output)
+    secrets = _secrets(args.redact_env)
+    config = verification_config(results, _load_config(args.config))
+    if args.rescan:
+        preflight(results)
+    written = write_scripts(results, args.output, secrets)
     for name, path in written.items():
         print(f'Wrote {path}')
     if args.apply:
         confirm = (lambda prompt: True) if args.yes else _prompt_yes
         state = apply_fixes(results, LocalRunner(), confirm=confirm, state_path=str(args.state))
         print(f'Applied {len(state["applied"])} fix(es); skipped {len(state["skipped"])}. State written to {args.state}')
+        if args.rescan:
+            output = args.output / 'rescan'
+            output.mkdir(parents=True, exist_ok=True)
+            snapshot = collect_after_apply(results, config, output / 'audit.log')
+            (output / 'snapshot.json').write_text(dumps(redact(snapshot, secrets)), encoding='utf-8')
+            after = _full_pipeline(snapshot, config, output, secrets)
+            comparison = compare_after_apply(results, state, after, config)
+            (output / 'comparison.json').write_text(dumps(redact(comparison, secrets)), encoding='utf-8')
+            print(f'Rescan: predicted {comparison["predicted_residual_paths"]} paths; '
+                  f'observed {comparison["actual_paths"]}; paths match: {comparison["paths_match"]}.')
     else:
         applyable = sum(1 for f in results.get('fixes', []) if f.get('execution') == 'script_and_apply')
         print(f'{applyable} applyable fix(es). Review the scripts, or re-run with --apply to change this host.')
@@ -196,8 +217,8 @@ def _build_parser():
     scan_cmd.add_argument('--port', type=int)
     scan_cmd.add_argument('--key', type=Path, help='SSH private key file')
     scan_cmd.add_argument('--password-env', metavar='NAME', help='env var holding the SSH password')
-    scan_cmd.add_argument('--accept-new-host-key', action='store_true')
-    scan_cmd.add_argument('--elevated', action='store_true')
+    scan_cmd.add_argument('--accept-new-host-key', action=argparse.BooleanOptionalAction, default=None)
+    scan_cmd.add_argument('--elevated', action=argparse.BooleanOptionalAction, default=None)
     scan_cmd.add_argument('--yes', action='store_true', help='skip the authorisation prompt (CI)')
     scan_cmd.add_argument('--config', type=Path)
     scan_cmd.add_argument('--path-cutoff', type=int)
@@ -219,6 +240,9 @@ def _build_parser():
     remediate_cmd.add_argument('file', type=Path, help='Completed results JSON')
     remediate_cmd.add_argument('--output', type=Path, default=Path('output'))
     remediate_cmd.add_argument('--apply', action='store_true', help='apply chmod/chown fixes on this host (gated)')
+    remediate_cmd.add_argument('--rescan', action='store_true', help='rescan this Linux host as the original scan account after applying')
+    remediate_cmd.add_argument('--config', type=Path)
+    remediate_cmd.add_argument('--redact-env', action='append', default=[], metavar='NAME')
     remediate_cmd.add_argument('--state', type=Path, default=Path('state.json'))
     remediate_cmd.add_argument('--yes', action='store_true', help='apply without per-change confirmation')
 

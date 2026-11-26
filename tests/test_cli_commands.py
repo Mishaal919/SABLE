@@ -75,3 +75,41 @@ def test_rollback_missing_state_is_clean_error(tmp_path):
 
 def test_scan_bad_target_is_clean_error():
     assert _exit_code(['scan', 'not-a-target', '--yes']) == 2
+
+
+def test_remediate_rescan_writes_comparison_and_report(tmp_path, monkeypatch):
+    import sable.remediate
+    import sable.remediate.verification as verification
+    from test_remediate import FakeRunner
+    monkeypatch.setattr(sable.remediate, 'LocalRunner', lambda: FakeRunner({'/etc/shadow': ('644', 'root', 'shadow')}))
+    monkeypatch.setattr(verification, 'preflight', lambda results: 1000)
+    snapshot = json.loads((SNAP / 'weak3.json').read_text())
+    monkeypatch.setattr(verification, 'collect_after_apply', lambda *args: snapshot)
+    output = tmp_path / 'output'
+    assert main(['remediate', str(RESULTS / 'weak3.json'), '--apply', '--yes', '--rescan',
+                 '--state', str(tmp_path / 'state.json'), '--output', str(output)]) == 0
+    comparison = json.loads((output / 'rescan' / 'comparison.json').read_text())
+    # Unchanged snapshot deliberately contradicts the applied chmod prediction.
+    assert comparison['applied_fix_ids'] and not comparison['paths_match']
+    assert (output / 'rescan' / 'report.html').exists()
+    assert (output / 'rescan' / 'snapshot.json').exists()
+
+
+def test_rescan_requires_apply(tmp_path):
+    assert _exit_code(['remediate', str(RESULTS / 'weak3.json'), '--rescan', '--output', str(tmp_path)]) == 2
+    assert not (tmp_path / 'fix.sh').exists()
+
+
+def test_scan_false_flags_override_automatic_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / 'sable.yaml').write_text('scan:\n  elevated: true\nssh:\n  accept_new_host_key: true\n  port: 2222\n')
+    def collect(host, user, **kwargs):
+        assert kwargs['config']['elevated'] is False
+        assert kwargs['accept_new_host_key'] is False
+        assert kwargs['port'] == 2223
+        return json.loads((SNAP / 'weak3.json').read_text())
+    monkeypatch.setattr(sable.collect, 'collect_snapshot', collect)
+    monkeypatch.setenv('TEST_PASSWORD', 'test')
+    assert main(['scan', 'auditor@host.example', '--password-env', 'TEST_PASSWORD',
+                 '--no-elevated', '--no-accept-new-host-key', '--port', '2223',
+                 '--output', str(tmp_path / 'report')]) == 0

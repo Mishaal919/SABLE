@@ -8,12 +8,17 @@ produce a full HTML report plus a terminal summary.
 **Current progress:** the full pipeline works end to end. `sable scan user@host`
 collects evidence read-only over SSH, the knowledge base builds a scored attack
 graph with unknowns and candidate fixes, planning/VOI/reporting run on top, and
-`remediate`/`rollback` generate and apply reversible chmod/chown fixes. This was
-verified **live** against the Docker lab targets (`make targets-up`, incl. ubuntu
-24.04 and debian:12), including the NV-02 no-writes certificate, a full
-apply→rescan→rollback cycle, the AG-07 top-paths graph SVG, and a cross-check of the
-key CVE fixed-versions against the official trackers. The only remaining item is the
-team's human peer review of the pull request.
+`remediate`/`rollback` generate and apply reversible chmod/chown fixes — now with
+protected recovery journals, safe script generation and an optional local-Linux
+rescan that compares observed paths against the fixes actually applied. The scanner,
+lab targets, remediation and the AG-07 top-paths graph SVG were verified **live**
+against the Docker lab (`make targets-up`, incl. ubuntu 24.04 and debian:12),
+including the NV-02 no-writes certificate and a full apply→rescan→rollback cycle, and
+the key CVE fixed-versions were cross-checked against the official trackers.
+Remaining: wiring live before/after no-writes fingerprints into collection, a
+live-Linux acceptance run of the new automatic rescan, and the team's human peer
+review. The latest remediation-recovery changes have not been rerun in Docker on this
+machine.
 
 ## AI contributor handoff — temporary
 
@@ -65,17 +70,17 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 
 | Area | Remaining work |
 |---|---|
-| Collection — Mishaal | Implemented and **verified live**: `sable scan` over SSH produced the expected findings on all four Docker targets |
+| Collection — Mishaal | Implemented and **verified live** (`sable scan` over SSH produced the expected findings on all Docker targets). Remaining hardening: broader permission-denied/nonzero handling and authentic redacted snapshots beyond the lab |
 | Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2226, incl. ubuntu 24.04 + debian:12 compat targets for NF-03); offline harness also passes |
-| Analysis — Hamzah | ~~AG-07 graph SVG, CVE version cross-check~~ done (static top-paths SVG in the report; key CVEs verified against trackers, two jammy kernel values corrected). Remaining: verify the pre-22.04 CVE entries and CVE-2022-2588 (tracker was down) |
-| Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
-| Remediation — Thomas | Implemented and **verified live** on weak2: apply → rescan (path gone) → rollback → rescan (path back), stat identical |
-| Orchestration — Thomas | Implemented and verified live; VOI wired into the CLI |
-| Final evaluation | Live detection accuracy, target acceptance, apply/rollback and NV-02 all verified. Remaining: 24.04/debian:12 base images, peer review and a fresh-clone demo rehearsal |
+| Analysis — Hamzah | ~~AG-07 graph SVG, CVE version cross-check~~ done (static top-paths SVG in the report; key CVEs verified, two jammy kernel values corrected). Remaining: verify the pre-22.04 CVE entries and CVE-2022-2588 (tracker was down) |
+| Safety verification — Mishaal | Wire before/after filesystem fingerprints into live collection certificates (NV-02 logic done; not yet produced automatically during a scan) |
+| Remediation — Thomas | Implemented and **verified live** on weak2 (apply → rescan → rollback, stat identical); the new automatic local rescan (recovery journals, comparison) still needs a live-Linux acceptance run |
+| Orchestration — Thomas | Implemented and verified live; VOI, config overrides and post-apply report/comparison wired into the CLI |
+| Final evaluation — team | Detection accuracy, target acceptance, apply/rollback and NV-02 verified; remaining: the automatic-rescan live run, peer review and a fresh-clone demo rehearsal |
 
-A rollback description is required today, but rollback execution is not implemented.
-The report displays supplied certificate/VOI data; it does not perform a filesystem
-audit. VOI is calculated by `sable.score.voi.compute_voi` but not yet called by the CLI. Synthetic fixtures are not evidence of live detection accuracy.
+Rollback execution is implemented. Reports display supplied certificate data;
+collection does not yet automatically establish a passing no-writes certificate.
+Synthetic fixtures and mocked scans are not evidence of live detection accuracy.
 
 ## Install and run
 
@@ -159,7 +164,9 @@ Generate remediation scripts, or apply chmod/chown fixes on a host you control:
 
 ```sh
 sable remediate output/weak3/results.json --output output/weak3   # writes fix.sh + rollback.sh
-sable remediate output/weak3/results.json --apply --state state.json   # gated apply (chmod/chown only)
+sable remediate output/weak3/results.json --apply --state state.json   # gated local apply
+# On the assessed Linux host, with a fresh state filename for this run:
+sable remediate output/weak3/results.json --apply --rescan --state state-new.json --output output/verified
 sable rollback state.json                                          # restore recorded owner/mode
 ```
 
@@ -175,10 +182,24 @@ locally; use them only on a host you are authorised to change.
 
 Install `.[dev,app]` when implementing Paramiko SSH collection and NetworkX analysis.
 Jinja2, PyYAML, jsonschema and timestamp validation are already core dependencies.
-The SSH defaults in `config/sable.yaml` are reserved for future collection; current
-`plan`/`report` commands accept the scoring/planner configuration, not SSH credentials.
+Commands with `--config` load `sable.yaml` from the working directory when present,
+or the explicitly named YAML file. CLI flags override YAML, including
+`--no-elevated` and `--no-accept-new-host-key` for scan. `config/sable.yaml` is a
+sample, not an automatically loaded file.
+
+`remediate --apply --rescan` collects locally as the original scan account and writes
+`rescan/report.html`, `results.json`, `summary.txt`, `snapshot.json`, `audit.log`
+and `comparison.json` beneath `--output`. It does not connect back over SSH.
+Pass the original analysis configuration to preserve custom scoring and entry points.
+Each apply run needs a new `--state` filename; recovery data is never overwritten.
+See [remediation details](docs/REMEDIATION.md).
 
 ## Verification status
+
+Latest local run (24 November 2026, Python 3.14): **294 passed, 6 skipped**.
+This includes real temporary-file recovery and mocked post-apply rescan integration.
+The installed package was refreshed. Older verification records follow; Docker was
+not available for a new live run.
 
 Last verified locally on **17 November 2026** (Windows 11, Python 3.13):
 

@@ -16,10 +16,9 @@ and an `execution` tag the planner set: `script_and_apply` for chmod/chown, else
    Anything that is not a well-formed chmod/chown — sudo, service, capability, manual,
    or an injection attempt — raises `UnsafeFix`. This is the real refusal mechanism.
 2. `scripts.generate_scripts` writes `fix.sh` (records original owner/mode to a state
-   file before each change, then applies chmod/chown) and `rollback.sh` (restores every
+   file once per unique path before any changes, then applies chmod/chown) and `rollback.sh` (restores every
    recorded path). recommend-only fixes appear only as commented recommendations.
-3. `apply.apply_fixes` records original state to `state.json` **first**, confirms each
-   change, then runs parsed operations through a runner (`LocalRunner` = argument-list
+3. `apply.apply_fixes` records original state to `state.json` after confirmation and **before mutation**, then runs parsed operations through a runner (`LocalRunner` = argument-list
    subprocess, no shell). `rollback.rollback` restores from `state.json`.
 
 ## Pipeline
@@ -37,7 +36,7 @@ so reports made this way carry the next-best-check ranking.
 | RM-02 | Gated apply (chmod/chown only) | `test_apply_*` (fake runner, state.json, confirm) | ✅ unit · ⬜ real apply (Docker) |
 | RM-03 | Rollback command | `test_rollback_restores_original_state`, CLI `rollback` | ✅ unit · ⬜ real rollback (Docker) |
 | RM-04 | Never automate sudo/service | `test_parse_refuses_non_chmod_chown`, recommend-only stays commented | ✅ |
-| RM-05 | Re-scan after fixes | `residual_matches` + `test_residual_matches` | ✅ compare · ⬜ live rescan (Docker) |
+| RM-05 | Re-scan after fixes | `remediate --apply --rescan`, structural comparison and CLI tests | ✅ implementation · ⬜ new live rescan (Docker) |
 | CL-01 | Stage commands | `test_cli_commands.py` (analyze/scan/remediate/rollback) + installed-CLI test | ✅ |
 | CL-02 | Flags + config | existing + scan/analyze `--config`/flags | ✅ |
 | NF-03 | Compatibility 3.10/3.12 | suite run on 3.10.22 and 3.12.16; CI matrix | ✅ · ⬜ scan each base image (Docker) |
@@ -58,3 +57,30 @@ bug in generated scripts (now LF-only, with a guard test).
   A remote apply runner would implement the same `stat/chmod/chown` interface with a
   write allow-list, kept entirely separate from the read-only collector.
 - `state.json` and `audit.log` are git-ignored; never commit them.
+
+## Recovery and post-apply verification (24 November 2026)
+
+Use `sable remediate results.json --apply --rescan --state run-01.json --output output`
+on the assessed Linux host. The original scan account must exist locally. Running
+as root requires `runuser` when that account differs; verification must not silently
+assess root instead of the original entry account. Pass `--config` with the original
+analysis settings when custom entry points, goals or scoring were used.
+
+Recovery journals use restrictive permissions, refuse overwrite and record each
+started fix before execution. A failure leaves recovery data available for
+`sable rollback run-01.json`. Declined fixes are not restored. JSON journals belong
+to the Python CLI; generated shell scripts use a separate TSV journal selected by
+`SABLE_STATE`, defaulting to `sable-remediation-state.tsv`. Use rollback.sh for TSV.
+Never delete a recovery journal merely to make a repeated apply succeed.
+
+Verification writes snapshot.json, results.json, report.html, summary.txt, audit.log
+and comparison.json under output/rescan. Predictions use only successfully applied
+fixes, excluding recommendations and refusals. `match` compares counts;
+`paths_match` compares path structure; `confidence_changes` lists score changes.
+An unchanged count does not establish matching paths or confidence.
+
+The test suite now exercises real chmod/rollback on an owned temporary file and
+checks mode, uid and gid equality. Shell syntax, failed recovery, hostile input and
+CLI orchestration are tested separately. The new automatic rescan still needs a
+live Linux acceptance run; Docker was unavailable during this pass. The November 18
+results above describe the earlier manually orchestrated script/rescan cycle.

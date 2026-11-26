@@ -10,13 +10,24 @@ def rollback_from_state(state, runner):
     originals = state.get('originals')
     if not isinstance(originals, list):
         raise RemediationError('state file has no "originals" list')
-    restored = []
+    from sable.remediate.operations import validate_operation
+    from sable.remediate.errors import UnsafeFix
+    validated, seen = [], set()
     for original in originals:
         try:
             path, mode = original['path'], original['mode']
             spec = f'{original["owner"]}:{original["group"]}'
-        except (KeyError, TypeError) as exc:
-            raise RemediationError('malformed original-state record') from exc
+            validate_operation('chown', spec, path)
+            validate_operation('chmod', mode, path)
+            if path in seen:
+                raise RemediationError('Duplicate path in recovery state')
+            seen.add(path)
+            if 'started' not in state or original.get('fix_id') in state['started']:
+                validated.append((path, mode, spec))
+        except (KeyError, TypeError, UnsafeFix) as exc:
+            raise RemediationError('Malformed original-state record') from exc
+    restored = []
+    for path, mode, spec in validated:
         runner.chown(spec, path)
         runner.chmod(mode, path)
         restored.append(path)
