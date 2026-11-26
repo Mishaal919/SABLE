@@ -6,6 +6,7 @@ from sable.contracts.validation import ContractError, dumps, validate
 from sable.redaction import redact
 from sable.report.terminal import terminal_summary
 from sable.report.explanations import report_explanations
+from sable.report.graph_svg import top_paths_svg
 
 
 def render_html(results, secrets=()):
@@ -23,7 +24,7 @@ def render_html(results, secrets=()):
     points = ' '.join(f"{40+520*p['fix_count']/max_count:.2f},{170-140*p['percent']/100:.2f}" for p in curve)
     return env.get_template('report.html').render(r=r, edges=edges, explanations=report_explanations(r),
         paths=sorted(r['paths'], key=lambda p: (-p['confidence'], p['id'])),
-        planning=planning, curve_points=points,
+        planning=planning, curve_points=points, paths_svg=top_paths_svg(r),
         cytoscape=root.joinpath('vendor/cytoscape.min.js').read_text(encoding='utf-8'),
         interaction=root.joinpath('templates/what_if.js').read_text(encoding='utf-8'))
 

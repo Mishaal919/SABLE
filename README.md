@@ -9,10 +9,11 @@ produce a full HTML report plus a terminal summary.
 collects evidence read-only over SSH, the knowledge base builds a scored attack
 graph with unknowns and candidate fixes, planning/VOI/reporting run on top, and
 `remediate`/`rollback` generate and apply reversible chmod/chown fixes. This was
-verified **live** against the four Docker lab targets (`make targets-up`), including
-the NV-02 no-writes certificate and a full apply→rescan→rollback cycle. Outstanding
-items are minor: extra base-image variants (24.04/debian:12), the optional graph SVG,
-a CVE tracker cross-check, and team peer review.
+verified **live** against the Docker lab targets (`make targets-up`, incl. ubuntu
+24.04 and debian:12), including the NV-02 no-writes certificate, a full
+apply→rescan→rollback cycle, the AG-07 top-paths graph SVG, and a cross-check of the
+key CVE fixed-versions against the official trackers. The only remaining item is the
+team's human peer review of the pull request.
 
 ## AI contributor handoff — temporary
 
@@ -66,7 +67,7 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 |---|---|
 | Collection — Mishaal | Implemented and **verified live**: `sable scan` over SSH produced the expected findings on all four Docker targets |
 | Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2226, incl. ubuntu 24.04 + debian:12 compat targets for NF-03); offline harness also passes |
-| Analysis — Hamzah | AG-07 graph SVG (optional), CVE version data cross-check against official trackers, real target snapshots and expected.yaml checks |
+| Analysis — Hamzah | ~~AG-07 graph SVG, CVE version cross-check~~ done (static top-paths SVG in the report; key CVEs verified against trackers, two jammy kernel values corrected). Remaining: verify the pre-22.04 CVE entries and CVE-2022-2588 (tracker was down) |
 | Safety verification | Actual before/after filesystem fingerprinting for the no-writes certificate |
 | Remediation — Thomas | Implemented and **verified live** on weak2: apply → rescan (path gone) → rollback → rescan (path back), stat identical |
 | Orchestration — Thomas | Implemented and verified live; VOI wired into the CLI |
@@ -209,8 +210,9 @@ produced the expected findings on all four targets, NV-02's `docker diff` certif
 passed on hardened with no unexpected changes, and the full remediation cycle on weak2
 (generate `fix.sh` → apply → rescan shows the root path gone → `rollback.sh` → rescan
 shows it back, stat identical) worked end to end. The collector was also run against
-ubuntu 22.04, ubuntu 24.04 and debian:12 base images (NF-03). Remaining: the optional
-graph SVG, the CVE tracker cross-check, and team peer review.
+ubuntu 22.04, ubuntu 24.04 and debian:12 base images (NF-03). The AG-07 top-paths SVG
+and the CVE fixed-version cross-check (two jammy kernel values corrected) are also
+done; the remaining item is the team's human peer review.
 
 ```sh
 python -m pytest -q
