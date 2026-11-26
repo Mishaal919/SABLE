@@ -5,13 +5,20 @@ The intended workflow is to accept SSH credentials, collect evidence using
 read-only commands, build and score attack paths, plan reversible fixes, and
 produce a full HTML report plus a terminal summary.
 
-**Current progress (24 November 2026):** SSH collection, graph analysis, fix
-planning and HTML/terminal reporting are connected. Thomas's remediation now
-includes protected recovery journals, safe script generation and an optional local
-Linux rescan that compares observed paths with the fixes actually applied.
-Collection coverage, live no-writes fingerprint wiring, CVE verification and final
-Linux/distro acceptance checks still need work. Historical Docker results are in
-PROGRESS.md; the latest changes have not been rerun in Docker on this machine.
+**Current progress:** the full pipeline works end to end. `sable scan user@host`
+collects evidence read-only over SSH, the knowledge base builds a scored attack
+graph with unknowns and candidate fixes, planning/VOI/reporting run on top, and
+`remediate`/`rollback` generate and apply reversible chmod/chown fixes — now with
+protected recovery journals, safe script generation and an optional local-Linux
+rescan that compares observed paths against the fixes actually applied. The scanner,
+lab targets, remediation and the AG-07 top-paths graph SVG were verified **live**
+against the Docker lab (`make targets-up`, incl. ubuntu 24.04 and debian:12),
+including the NV-02 no-writes certificate and a full apply→rescan→rollback cycle, and
+the key CVE fixed-versions were cross-checked against the official trackers.
+Remaining: wiring live before/after no-writes fingerprints into collection, a
+live-Linux acceptance run of the new automatic rescan, and the team's human peer
+review. The latest remediation-recovery changes have not been rerun in Docker on this
+machine.
 
 ## AI contributor handoff — temporary
 
@@ -63,13 +70,13 @@ All reported post-fix outcomes are predictions; nothing is applied to a server.
 
 | Area | Remaining work |
 |---|---|
-| Collection — Mishaal | Permission-denied/nonzero command handling, service/timer/SSH-key coverage, authentic redacted snapshots |
-| Targets — Mishaal, shared tests | Reproduce live acceptance on the lab and supported distro variants |
-| Analysis — Hamzah | Optional AG-07 graph SVG; cross-check CVE versions against official trackers |
-| Safety verification — Mishaal | Wire before/after filesystem fingerprints into live collection certificates |
-| Remediation — Thomas | New automatic local rescan implemented and tested with mocked collection; live Linux acceptance still required |
-| Orchestration — Thomas | Implemented, including VOI, config overrides and post-apply report/comparison |
-| Final evaluation — team | Peer review, live acceptance evidence and fresh-clone demo |
+| Collection — Mishaal | Implemented and **verified live** (`sable scan` over SSH produced the expected findings on all Docker targets). Remaining hardening: broader permission-denied/nonzero handling and authentic redacted snapshots beyond the lab |
+| Targets — Mishaal, shared tests | Implemented and run live via `make targets-up` (ports 2221-2226, incl. ubuntu 24.04 + debian:12 compat targets for NF-03); offline harness also passes |
+| Analysis — Hamzah | ~~AG-07 graph SVG, CVE version cross-check~~ done (static top-paths SVG in the report; key CVEs verified, two jammy kernel values corrected). Remaining: verify the pre-22.04 CVE entries and CVE-2022-2588 (tracker was down) |
+| Safety verification — Mishaal | Wire before/after filesystem fingerprints into live collection certificates (NV-02 logic done; not yet produced automatically during a scan) |
+| Remediation — Thomas | Implemented and **verified live** on weak2 (apply → rescan → rollback, stat identical); the new automatic local rescan (recovery journals, comparison) still needs a live-Linux acceptance run |
+| Orchestration — Thomas | Implemented and verified live; VOI, config overrides and post-apply report/comparison wired into the CLI |
+| Final evaluation — team | Detection accuracy, target acceptance, apply/rollback and NV-02 verified; remaining: the automatic-rescan live run, peer review and a fresh-clone demo rehearsal |
 
 Rollback execution is implemented. Reports display supplied certificate data;
 collection does not yet automatically establish a passing no-writes certificate.
@@ -224,8 +231,9 @@ produced the expected findings on all four targets, NV-02's `docker diff` certif
 passed on hardened with no unexpected changes, and the full remediation cycle on weak2
 (generate `fix.sh` → apply → rescan shows the root path gone → `rollback.sh` → rescan
 shows it back, stat identical) worked end to end. The collector was also run against
-ubuntu 22.04, ubuntu 24.04 and debian:12 base images (NF-03). Remaining: the optional
-graph SVG, the CVE tracker cross-check, and team peer review.
+ubuntu 22.04, ubuntu 24.04 and debian:12 base images (NF-03). The AG-07 top-paths SVG
+and the CVE fixed-version cross-check (two jammy kernel values corrected) are also
+done; the remaining item is the team's human peer review.
 
 ```sh
 python -m pytest -q

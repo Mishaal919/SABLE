@@ -4,8 +4,15 @@
 # affected : per distro release, versions >= introduced (if given) and < fixed are
 #            vulnerable. Releases not listed are never matched.
 # Matches are version-only, so the generated step is always strength "inferred".
-# VERIFY fixed versions against https://ubuntu.com/security/cves and
-# https://security-tracker.debian.org before relying on results (see meta.yaml).
+#
+# Verification (26 Nov 2026, against https://ubuntu.com/security/<CVE> and
+# https://security-tracker.debian.org). Confirmed correct: CVE-2021-4034,
+# CVE-2021-3156, CVE-2023-22809, CVE-2023-4911, CVE-2023-0386, CVE-2024-1086.
+# Corrected to match the trackers: CVE-2023-32233 (jammy 5.15.0-75.82 -> 73.80),
+# CVE-2022-32250 (jammy 5.15.0-40.43 -> 37.39). Still unverified (tracker
+# unavailable or not yet checked): CVE-2022-2588 (Ubuntu page 504), and the
+# pre-22.04 kernel entries (16.04/18.04/20.04). Re-verify those before relying on
+# them for those older releases; the 22.04/24.04/debian-12 target distros are covered.
 cves:
   - id: CVE-2021-4034
     name: PwnKit (pkexec)
@@ -122,7 +129,7 @@ cves:
     name: nf_tables use-after-free
     package: kernel
     affected:
-      - {distro: ubuntu 22.04, fixed: 5.15.0-40.43}
+      - {distro: ubuntu 22.04, fixed: 5.15.0-37.39}
     cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
     note: Needs unprivileged user namespaces.
 
@@ -130,7 +137,7 @@ cves:
     name: nf_tables anonymous set use-after-free
     package: kernel
     affected:
-      - {distro: ubuntu 22.04, fixed: 5.15.0-75.82}
+      - {distro: ubuntu 22.04, fixed: 5.15.0-73.80}
       - {distro: debian 12, fixed: 6.1.27-1}
     cvss: {score: 7.8, vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"}
     note: Needs unprivileged user namespaces.

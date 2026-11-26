@@ -141,7 +141,7 @@ fails when KB/graph changes are not followed by regeneration.
 | NV-05 | Every rule has an ATT&CK ID from the accepted list; every generated edge carries one |
 | NF-02 | Path -> edge -> evidence -> source_cmd trace over all fixtures |
 | NF-05 | Five analyze runs byte-identical per target |
-| AG-07 | Not implemented (Should). The report's Cytoscape graph covers visualisation; an SVG export would add graphviz/matplotlib |
+| AG-07 | Done (Should): a static, dependency-free top-paths SVG is rendered in the report (`sable/report/graph_svg.py`), alongside the interactive Cytoscape view |
 
 ## Known limits
 

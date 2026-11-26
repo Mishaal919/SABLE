@@ -104,10 +104,18 @@ NF-03 base-image breadth is now also done live: `compat-ubuntu2404` (ubuntu 24.0
 and `compat-debian12` (debian:12) targets (ports 2225/2226) scan correctly - the
 collector parses each distro and detects the planted world-readable `/etc/shadow`.
 
-**Still outstanding (optional / team):** AG-07 optional graph SVG (Should; the
-Cytoscape view covers it), the CVE fixed-version cross-check against official
-trackers, and the guide's human peer review of each member's PR. The handoff section
-in README stays until peer review is done.
+**Now done (26 Nov 2026):** AG-07 - a static, self-contained top-paths SVG is
+rendered in the report's "Ranked paths" section (`sable/report/graph_svg.py`),
+dependency-free and print-friendly, complementing the Cytoscape view. CVE
+fixed-version cross-check - the base-image-relevant and flagship CVEs in `cves.yaml`
+were verified against the Ubuntu/Debian trackers; two jammy kernel values were
+corrected (CVE-2023-32233 and CVE-2022-32250); see the verification note at the top
+of `cves.yaml`. CVE-2022-2588 and the pre-22.04 kernel entries remain unverified
+(Ubuntu page 504 / out-of-scope distros).
+
+**Still outstanding (team only):** the guide's human peer review of each member's PR,
+and a fresh-clone demo rehearsal. The handoff section in README stays until peer
+review is done.
 
 **Capability policy unchanged:** capability fixes stay recommend-only (not scripted,
 not applied); only chmod/chown are applyable (RM-04). DECISIONS item 5 holds.
@@ -686,7 +694,8 @@ elsewhere or authorize dropping them to call the project finished.
   `sudoers_full`. Confirm these when real snapshots exist.
 - **CVE data:** `cves.yaml` fixed versions were written without network access and
   must be verified against official trackers before evaluation.
-- **AG-07 graph SVG** (Should) is not implemented; the report's Cytoscape view covers it.
+- **AG-07 graph SVG** (Should) is implemented: `sable/report/graph_svg.py` renders a
+  static top-paths SVG in the report, alongside the interactive Cytoscape view.
 - **weak2:** www-data must be enabled as an entry for its writable cron-script path.
 - **Remediation boundary:** the guide's exclusive read-only SSH execution rule and
   optional write mode need distinct, explicitly gated runners. Never relax collection.
